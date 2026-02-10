@@ -11071,3 +11071,25 @@ body {
 #portfolio .portfolio-item-caption-content {
     color: white !important;
 }
+
+.lab-content p,
+.lab-content h1,
+.lab-content h2,
+.lab-content h3,
+.lab-content h4 {
+    font-size: 1.15rem;   /* ~15% increase */
+}
+
+.lab-content img {
+    max-width: 80%;   /* reduces size */
+    height: auto;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;  /* centers image */
+}
+
+.lab-content .ratio {
+    max-width: 80%;
+    margin-left: auto;
+    margin-right: auto;
+}
