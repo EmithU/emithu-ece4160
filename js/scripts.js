@@ -52,3 +52,24 @@ window.addEventListener('DOMContentLoaded', event => {
     });
 
 });
+
+document.querySelectorAll('.portfolio-modal').forEach(modalEl => {
+  modalEl.addEventListener('show.bs.modal', async () => {
+    const holder = modalEl.querySelector('.lab-content');
+    if (!holder) return;
+
+    // prevent re-fetching every time
+    if (holder.dataset.loaded === "true") return;
+
+    const src = holder.getAttribute('data-src');
+    try {
+      const res = await fetch(src, { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      holder.innerHTML = await res.text();
+      holder.dataset.loaded = "true";
+    } catch (e) {
+      holder.innerHTML = `<p class="text-danger">Failed to load ${src}</p>`;
+      console.error(e);
+    }
+  });
+});

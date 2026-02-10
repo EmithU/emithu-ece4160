@@ -42,7 +42,7 @@
   --bs-danger: #dc3545;
   --bs-light: #f8f9fa;
   --bs-dark: #212529;
-  --bs-primary-rgb: 26, 188, 156;
+  --bs-primary-rgb: 188, 26, 75;
   --bs-secondary-rgb: 44, 62, 80;
   --bs-success-rgb: 25, 135, 84;
   --bs-info-rgb: 13, 202, 240;
@@ -11043,4 +11043,31 @@ html {
 
 .copyright {
   background-color: #1a252f;
+}
+
+.masthead-avatar {
+    width: 60px;   /* change to any size */
+    max-width: 40%; /* keeps it responsive */
+}
+
+body {
+    font-size: 0.9rem;   /* default is 1rem → shrink by 10% */
+}
+
+#portfolio {
+    background-color: #3969ed;
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+}
+
+#portfolio {
+    color: white;
+}
+
+#portfolio a,
+#portfolio h2,
+#portfolio h3,
+#portfolio p,
+#portfolio .portfolio-item-caption-content {
+    color: white !important;
 }
