@@ -4,10 +4,83 @@
   <div class="divider-custom-line"></div>
 </div>
 
-<img class="img-fluid rounded mb-4" src="labs/images/lab1img/lab1.png" alt="Lab 1 setup">
+<img class="img-fluid rounded mb-4" src="labs/images/lab1img/lab1.png">
 
-<p class="mb-4">Your lab writeup text...</p>
+<p class="mb-4"> This lab seeks to setup and enable Bluetooth connectivity to the Sparfkun Apollo3 microcontroller to be used in this class. It it divided up into 1A and 1B. 1A focuses more on setting up and reading from the board directly through serial, while 1B focuses more on setting up and interfacing with the board through Bluetooth.</p>
 
-<div class="ratio ratio-16x9 mb-4">
-  <iframe src="https://www.youtube.com/embed/VIDEO_ID" title="Lab 1 video" allowfullscreen></iframe>
-</div>
+<p style="font-weight: bold;"> <strong>Lab 1A</strong> </p>
+
+<p class="mb-4">To do the lab, I first needed to install the Arduino IDE and the Sparkfun Appollo3 boards manager. I already had the Arduino IDE installed, so I used the provided JSON to install the Sparkfun Apollo3 Arduino Core. I have done this before for various boards, so this process was relatively straightforward.</p>
+
+<p class="mb-4">Task 1 of the lab involved plugging the board into our laptop and selecting it on the Arduino IDE. This was a very straightforward process and didn't yield any issues for me.</p>
+
+<p class="mb-4">Task 2 of the lab involved running the Blink demo on the board. This is a classic 'hello world' type program to run on microcontrollers, and I was able to run it without issue.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab1vid/task1_1a.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">Task 3 of the lab involved running the Serial demo (Example4_Serial) on the board. The board assumed a baud rate of 115200, but the IDE was originally configured to run at 9600. Once I switched the IDE to 115200, the demo ran without issue and I got the expected output.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab1img/task3_1a.png">
+
+<p class="mb-4">Task 4 of the lab involved running the analogRead demo (Example2_analogRead) on the board. For this board, that produces readings of the temperature sensor. The temperature sensor is embedded inside of the board; grasping the whole board for a few minutes produces the expected increase in reported temperature. It does not seem that the temperature sensor is not particularly precise or accurate, but it an interesting sensor nevertheless.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab1img/1a_task4.png">
+
+<p class="mb-4">Task 5 of the lab involved running the microphone demo (Example1_MicrophoneOutput) on the board. Snapping or making other high-frequency noises causes the board to produce the expected output.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab1vid/1a_task5.mp4" type="video/mp4">
+</video>
+
+<p style="font-weight: bold;"> <strong>Lab 1B</strong> </p>
+
+<p class="mb-4">While Bluetooth is the main focus of 1B, another component of this lab is setting up the Jupyter notebook environment. My laptop was originally running Python 3.9, and this lab requires Python versions 3.10-3.13. Upgrading the Python version used by default on the terminal turned out to be a convoluted task, but I was finally able to do it by following this guide: https://stackoverflow.com/questions/75415286/how-to-change-python3-version-on-mac-to-3-10-10</p>
+
+<p class="mb-4">Once that was done, I then got to setting up the virtual environment, setting up Jupyter Notebook, and reading up on BLE. This all went without issue. After this, I installed the ArduinoBLE library into the Arduino IDE and got my board's MAC address, and then pasted that address into connections.yaml. I generated a new BLEServise UUID, updated ble_arduino.ino and connections.yaml with it, and ran all of the existing cells in demo.ipynb. This went without issue, suggesting that I configured both ends of the system correctly and have a working Bluetooth connection between the board and my laptop.</p>
+
+<p class="mb-4">Task 1 of the lab involved sending a string value from my laptop to the board using the ECHO command. If set up correctly, the laptop should recieve an augmented message. For example - sending 'hello' should cause the board to send 'Robot says -> hello:)'. This was able to run without issue. </p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab1img/1b_task1.png">
+
+<p class="mb-4">Task 2 of the lab involved implementing a SEND_THREE_FLOATS case on the board. As the name suggests, three floats are sent to the board. The board then parses this message, and sends an augmented string with the 3 floats.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab1img/1b_task2.png">
+
+<p class="mb-4">Task 3 of the lab involved quering the board to get it's current time in milliseconds. The board would call millis() and send it's output to back to the laptop.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab1img/1b_task3.png">
+
+<p class="mb-4">Task 4 of the lab involved setting up a notification handler. The idea of a notification handler is that we don't need to call a 'manual' read command on our laptop to process whatever the board sends, allowing for the board to freely send data and us to process whaatever it recieves. Here, we put our GET_TIME_MILLIS into the handler.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab1img/1b_task4.png">
+
+<p class="mb-4">Task 5 of the lab involves creating a new LOOP command which causes the board to repeatedly call millis() and send the output to my laptop, which then prints the output. This lets us observe the amount of data sent over a period of time, and compute how fast messages can be sent. I programmed the Arduino to send time stamps continuously over 10 seconds (pictured below is just 1 second of data for brevity), and have a notification handler adding whatever it recieves to an array. From this, we can compute the effective data transfar rate of this method. After 10 seconds, the length of the array is 1076, and the final time stamp minus initial time stamp shows 9927 milliseconds. We were able to send messages at a rate of 108.39 messages/second. Each message is a string encoding a 6-digit int, which is 6 bytes. We multiply our 108.39 messages/second by 6 bytes/message to get an effective data rate of 650.34 bytes/second.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab1img/1b_task5py.png">
+<img class="img-fluid rounded mb-4" src="labs/images/lab1img/1b_task5ard.png">
+
+<p class="mb-4">Task 6 of the lab still involves the board sending millis() continuously to the laptop. This time though, the board first stores time stamps into an array, and then sends the full array to the laptop.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab1img/1b_task6ard.png">
+
+<p class="mb-4">Task 7 of the lab involves reading from the temperature sensor concurrently with the timer, storing both in their own array, and sending both to the laptop. The idea here is that time stamps properly match with the reported temperature. </p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab1img/1b_task7py.png">
+<img class="img-fluid rounded mb-4" src="labs/images/lab1img/1b_task7ard.png">
+
+<p class="mb-4">Both methods have their own set of advantages and disadvantages. The first method can be done infinitely because data isn't stored on the board itself, and we get a constant data stream instead of waiting for an array to populate, at the cost of less precision due to every time stamp being bottlenecked by Bluetooth overhead. Method 2 results in a significantly more precise set of timestamps, but cannot be done infinitely because data is stored on the board (and the board has a very limited amount of memory) and data outputs are only given in bulk after recording is done. Method 1 might make more sense for cases which rely on real-time reports (say, an agriculturual temperature monitor), while method 2 might make more sense for applications requiring a very high amount of precision over a short period of time (say, in a research setting).</p>
+
+<p class="mb-4">The second method records data at a rate of 4000 Bytes / second. In my code, I store each millis() value as an int, which is 4 bytes. If we divide the existing 384kB of RAM / 4 bytes per int, we get that we can store 96000 time values, though the actual value will be slightly lower because RAM is used for Bluetooth overhead.</p>
+
+<p style="font-weight: bold;"> <strong>Discussion</strong> </p>
+
+<p class="mb-4">In this lab, I learned about how to set up and use Bluetooth with a microcontroller, and in particular how useful something like a notification handler could be. No part of the lab was particularly challenging (beyond setting up Python on my laptop).</p>
+
+<p style="font-weight: bold;"> <strong>References</strong> </p>
+
+<p class="mb-4">I refered the sites of Jorje Copra, Henry Calderon, and Katarina Duric when completing this lab. To assist with making the site, I used an online template and used ChatGPT to modify it as it is now.</p>
+
+
+

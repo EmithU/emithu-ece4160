@@ -11093,3 +11093,14 @@ body {
     margin-left: auto;
     margin-right: auto;
 }
+
+.lab-content video {
+    max-width: 80%;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.big-image {
+    max-width: 95% !important;
+}
