@@ -6,4 +6,132 @@
 
 <img class="img-fluid rounded mb-4" src="labs/images/lab2img/lab2.png">
 
-<p class="mb-4">Work in Progress</p>
+<p class="mb-4">This lab seeks to set up and fully calibrate the provided ICM-20948 IMU.</p>
+
+<p style="font-weight: bold;"> <strong>Setup the IMU</strong> </p>
+
+<p class="mb-4">Firstly, the IMU was plugged into the microcontroller. Thanks to the QUIIC connector, this was a very straightforward process.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab2img/connections.jpg">
+
+<p class="mb-4">With this done, the next step is establishing that it gives a data output at all, and that the data output changes predictably based on the force being applied to it. </p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab2vid/imu_example.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">The IMU communicates with the microcontroller through I2C. One feature of I2C is the ability for many devices to communicate on one I2C bus. To accomplish this, each device transmits an address along with it's data, and this address is unique between devices. For this IMU, that address is (mostly) hardcoded, with the exception of one bit. AD0_VAL is that bit, and it is set to 1 by default when the ADR jumper on the board is open. This allows us to potentially have 2 of this exact IMU model along the same I2C bus without data collisions.</p>
+
+<p class="mb-4">IMUs typically contain an accelerometer, gyroscope, and sometimes a magnetometer, in one IC unit. Of particular relevance for this lab/course are the accelerometer and gyroscope. The accelerometer and gyroscope each have their own benefits and drawbacks; 'combining' their results through a complimentary filter allow us to have the 'best of both worlds', with precise and accurate data.</p>
+
+<p class="mb-4">Pictured below is the code for plotting raw accelerometer data on the Arduino serial plotter, as well as a snapshot of the plot as the IMU was rotated smoothly. Accelerometers measure acceleration relative to a free-fall reference frame, meaning that when completely stationary and laying on one axis, that axis will report an acceleration of 1g; when not directly laying on one axis, each axis will report a component of gravity as their acceleration. By taking readings along each axis and performing trigonometry, we can figure out the absolute orientation of the IMU. While relatively accurate, they suffer from being sensitive to noise in the envronment out of the box, which is why all 3 axes show considerable 'imperfections' despite the IMU experiencing a relatively smooth motion. If noise wasn't present, all 3 of these lines would be significantly smoother.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab2img/3_accel_plot_code.png">
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/4_accel_plot.png">
+
+<p class="mb-4">Pictured below is a snapshot of a plot of raw gyroscope data as the IMU was rotated smoothly, in the same way as the accelerometer above. Gyroscopes measure angular velocities, and determining absolute orientations from a gyroscope involves adding to or subtracting these velocities from an accumulator variable. While being very precise for very small intervals of time and not being very sensitive to external noise, gyroscopes have an internal 'offset' and might still have small sources of constant noise. Because we are integrating gyroscope readings over time, even small imperfections in data accumulate very quickly.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/5_gyro_plot.png">
+
+<p style="font-weight: bold;"> <strong>Accelerometer</strong> </p>
+
+<p class="mb-4">While using the raw x, y, and z values can work for real-world use, we plan on using IMU readings to determine orientation and not position in space. Furthermore, we are only planning on operating along a 2D plane. By converting these readings to roll and pitch, we simultaneously get more direct rotational readings and decrease the number of data points we need to work around from 3 to 2.</p>
+
+<p class="mb-4">As mentioned previously, trigonometry needs to be performed to convert the raw accelerometer readings into angle measurements. The relationship between vectors is best captured by the arctan function, but arctan suffers from discontinuities and sign behaviors different from what is expected based on the actual rotation of the IMU. This occurs in part because arctan doesn't pay attention to the sign information of it's numerator and denominator, just their net result. In it's place, the atan2 function is used, which is as follows: </p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab2img/6_atan2.png">
+
+<p class="mb-4">For computing roll, pitch, and yaw, the following formulas are used: </p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab2img/7_rollpitch_eq.png">
+
+<p class="mb-4">Next, roll and pitch at angles which should provide readings of -90, 0, and 90 degrees were collected. Below are plots of the angle readings for roll and pitch respectively, capturing their angle readings in the full range of motion (the surface of a table was used to verify that the IMU was at 90, 0 and -90 degrees). The accelerometer seems to be able to give readings of 90 and -90 degrees very reliably for both roll and pitch, indicating that two-point calibration is not necessary.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/8_roll_time.png">
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/9_pitch_time.png">
+
+<p class="mb-4">Below is the corresponding microcontroller code responsible for collecting and sending this data.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab2img/10_roll_pitch_code.png">
+
+<p class="mb-4">As mentioned previously, raw accelerometer data tends to be very noisy. This noise can be systematically attenuated by transforming the signal to the frequency domain and removing high-frequency components. Random background noise and vibrational noise tends to exist at very high frequencies, and relevant data tends to be low frequency, so removing these high frequency components should remove a significant amount of noise.</p>
+
+<p class="mb-4">If the robot never faces brief, external changes in orientation, any frequencies other than those close to or at 0Hz would be cut as we would know that only low-frequency components are relevant. We do not assume that the robot will never face brief changes in orientation; attenuating too much high-frequency data will reduce the 'responsiveness' of the robot. This is why we will incorporate gyroscope data later, but for now, it is best to optimize the accelerometer as much as possible by picking an optimal cutoff frequency.</p>
+
+<p class="mb-4">When shaking the IMU randomly, noise becomes very apparent, especially on the frequency domain plot. Pictured below are the time and frequency domain plots for roll and pitch as the IMU is shaken randomly: </p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/11_roll_pitch_freq.png">
+
+<p class="mb-4">There are many possible ways to implement a low-pass filter; I chose the method demonstrated in class, which models the system as an RC circuit. The formulae are presented below: </p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab2img/14_lp_formula.png">
+
+<p class="mb-4">Analyzing the frequency domain plots, there seems to be a notable dropoff at around 15Hz, and so this was chosen as the cutoff frequency. Because the gyroscope will be integrated in the final product, it is better to be more aggressive with the cutoff now; useful data is most likely present past 15Hz, but there is no need to carefully sift for it now. Below is a plot of data from randomly spinning the IMU, with and without the low-pass filter. Clearly, the low-passed data is significantly cleaner.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/12_roll_pitch_lp_freq.png">
+
+<p class="mb-4">Below is the microcontroller code responsible for generating this data: </p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab2img/13_roll_pitch_lp_code.png">
+
+<p style="font-weight: bold;"> <strong>Gyroscope</strong> </p>
+
+<p class="mb-4">As mentioned previously, gyroscopes measure velocities, and their outputs need to be accumulated to get a proper angle measurement. Pictured below are the roll, pitch, and yaw plots (in the time and frequency domains) reported by the gyroscope as the IMU was spun randomly, with a dt of 1 millisecond. Clearly, very little noise is present in the gyroscope when compared to the accelerometer.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/15_gyro.png">
+
+<p class="mb-4">Pictured below is the microcontroller code responsible for gathering gyroscope measurements.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab2img/16_gyro_code.png">
+
+<p class="mb-4">Gyroscopes tend to accumulate error very quickly. Below is a plot of the reported roll, pitch, and yaw of the gyroscope as it is laying flat on a table, motionless (still at a dt of 1 millisecond). In just 4 seconds, all of roll, pitch, and yaw showed a consistent deviation from 0 degrees; over the course of a few minutes, this error will accumulate signficantly. </p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/17_gyro_accum.png">
+
+<p class="mb-4">In my testing, adjusting the sampling frequency to be higher introduces exponentially more error, and lowering the sampling frequency is not realistic in the long-run because the robot will need to be doing many calculations beyond polling the gyroscope. However, we still want the highly accurate data that gyroscopes can provide in small time intervals. This motivates a complimentary filter, which fuses the data of the accelerometer and gyroscope into one set of values.</p>
+
+<p class="mb-4">With a complimentary filter, you choose how much 'weight' you are putting into accelerometer and gyroscope data. I used the formula provided in lecture, pictured below: </p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab2img/21_comp_formula.png">
+
+<p class="mb-4">With this formula, we provide an 'alpha' term. This term dictates how much weight we are putting into each of the accelerometer or gyroscope data. In my testing, I found an alpha of 0.94 to be effective, though I have no doubt this will change as I better understand the noise in the robot itself.</p>
+
+<p class="mb-4">In any case, here are plots showing the complimentary filter, low-passed accelerometer data, and gyroscope data. I include cases of the IMU remaining still, being shaken randomly, and me smacking the table lightly respectively to show how the system behaves in a variety of situations.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/18_comp_na.png">
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/19_comp_random.png">
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab2img/20_comp_noise.png">
+
+<p class="mb-4">In all honesty, the fruits of implementing the complimentary filter are not fully realized because we are in a relatively noise-free environment, so the low-passed accelerometer data is pretty precise and accurate as-is. Once far more noise is introduced though, the gyroscope will play a far more critical role and the complimentary filter will be critical.</p>
+
+<p style="font-weight: bold;"> <strong>Sample Data</strong> </p>
+
+<p class="mb-4">I wrote my code in a similar style to lab 1's faster method of collecting and sending data from the start. No delays were used, nor were any serial.prints during data collection.</p>
+
+<p class="mb-4">My code is configured to run continuously until 1000 samples are collected. We can divide the sample count by the amount of time elapsed (4271 milliseconds) and multiply by 1000 to get a sample rate of 234.14 samples/second. </p>
+
+<p class="mb-4">My code is configured to store Accel/Gyro/Comp data in separate arrays. This separation makes it far easier to understand what data is being accessed, versus indexing one array which can very easily result in hard-to-debug indexing errors. I have all of the arrays as double arrays because that is the data type outputted by the IMU and I want to avoid potential type mismatches or erasing potentially useful data.</p>
+
+<p class="mb-4">The Artemis Nano has 384KB of memory. In theory, assuming that we are using doubles, we can store 384KB / 8B = 48000 samples total. This means we can store a max of 205 seconds of data. I have been using this method of storing and sending data throughout this lab, and my above plots end at just under 5 seconds with an array size of 1000. Clearly, 5 seconds of data is collection is possible using this method.</p>
+
+<p style="font-weight: bold;"> <strong>Record a Stunt</strong> </p>
+
+<p class="mb-4">The car is a lot of fun to toy with! I was surprised by how easy it is to make it perform flips.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab2vid/car.mp4" type="video/mp4">
+</video>
+
+<p style="font-weight: bold;"> <strong>References</strong> </p>
+
+<p class="mb-4">When doing this lab, I referenced the sites of Albert Sun and Sean Zhang.</p>
+
+<p class="mb-4">For the atan2 function description, <a href="https://www.medcalc.org/en/manual/atan2-function.php">this</a> source was used.</p>
+
+<p class="mb-4">For the low-pass filter formulae, the Sensors 2 lecture from ECE 4160 was used.</p>
+
+<p class="mb-4">ChatGPT was used to help generate the plots and with website formatting.</p>
