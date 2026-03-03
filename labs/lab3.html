@@ -6,4 +6,86 @@
 
 <img class="img-fluid rounded mb-4" src="assets/img/lab3.png">
 
-<p class="mb-4">Work in Progress</p>
+<p class="mb-4">This lab seeks to set up the Time of Flight (TOF) sensors.</p>
+
+<p style="font-weight: bold;"> <strong>Prelab</strong> </p>
+
+<p class="mb-4">The ToF sensor used in this class, the VLF351X, has a hard-coded I2C address, which is 0x52 according to the datasheet.</p>
+
+<p class="mb-4">By using two ToF sensors, we can get an understanding of the obstacles around the car across 2 axes; for the most part, the car will only move along two axes, so using two ToFs gives the car a relatively comprehensive understanding of what is going on around it.</p>
+
+<p class="mb-4">Both of our ToF sensors are the same model, with a hard-coded I2C address out of the box. In order to use both, we need to change one of the I2C addresses. This can be done by using the XSHUT pin on one ToFs to toggle it off on the fly. This will let us change the address of the other. This process will need to be performed upon startup of the microcontroller everytime, but the alternative is toggling each ToF on/off continuously; this approach is considerably less error-prone and saves the constant CPU computation required.</p>
+
+<p class="mb-4">As mentioned previously, we have 2 ToF sensors. I intend on placing one on the front of the car, and another on the right side of the car, between two wheels. This means that the car won't be able to see objects only along it's corners, but this specific situation should be relatively rare. We will also miss objects to the left and behind of us; we set the environment that the car will perform in, so we can just ensure that collisions due to the car not having vision of this area won't occur.</p>
+
+<p class="mb-4">Below, I present a sketch of my full wiring diagram, including the IMU, both ToF sensors, and the motor drivers.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab3img/1_wiring.png">
+
+<p style="font-weight: bold;"> <strong>Lab Tasks</strong> </p>
+
+<p class="mb-4">We first needed to solder a QWIIC connector to a ToF. To accomplish this, we cut one of our provided QUIIC connectors, stripped them, and soldered directly. At this point, I took apart my car and made decisions on where to place all of the electronics, minimizing cable lengths and maximizing distance between cables. This is because we are making permanent cuts and I wanted to avoid desoldering. Pictured below is a close-up of the soldering to one ToF, and another with both ToFs plugged into the board through the QWIIC breakout. I2C is a very widely used communications protocol, and what cable color maps with what signal is generally consistent across implementaions; this is how I determined what cable to solder to what pin.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab3img/2_close.jpg">
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab3img/3_general.jpg">
+
+<p class="mb-4">We also needed to snip the cable coming from a battery and solder on a cable that can plug into the microcontroller. Below is a picture of the re-soldered battery charging while connected to the microcontroller.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab3img/4_battery.jpg">
+
+<p class="mb-4">We first test one ToF sensor with the provided Example05_wire_I2C code, just to test that is communicating with the microcontroller properly. Below is a screenshot of the output of this code, showing that it appears as 0x29. The reason for this is because the LSB is dedicated for a read/write flag. If we shift one bit to the left, we get our expected address of 0x52. The microcontroller seems to have two separate I2C channels, and so our ToF only appears under one of them. </p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab3img/5_i2c.png">
+
+<p class="mb-4">We next need to determine if we want to use our ToF sensor at the short, medium, or long ranges. The stunts that I plan on having the car perform require short-range detection of objects in fornt of it. Furthermore, longer and longer distances require less and less ambient light in the environment to properly function, and I also don't plan on using the car in low-light conditions. With this, it was decided that the short-distance mode will be used.</p>
+
+<p class="mb-4">With this, it is a good idea to measure the limits of this range. In particular, the range, accuracy, repeatability, and ranging time are measured. Pictured below is the physical setup constructed to perform this test.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab3img/6_box.jpg">
+
+<p class="mb-4">To get all 4 of these values, a box is left on a spot along the tape measure, and 100 samples from the ToF are taken, along with the corresponding timestamps. This is done for a few distances along the tape measure. We can test how close/far the box can be for the ToF to measure anything at all to determine range. We can see how far the mean value is from the actual value at each distance to measure accuracy. We can see how big/small the standard deviation each distance has to determine repeatability. We can measure the average difference between timestamps to determine ranging time. Below is the Arduino code responsible for getting each of these values:</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab3img/7_tofdist.png">
+
+<p class="mb-4">Below is a plot of the measured distance versus the actual distance, with an idea y=x plot and deviation markers. Clearly, the measured distance is reasonably accurate to the actual distance and is very consistent, but does become less accurate if the ToF is very close or very far from the object it's detecting.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab3img/8_tofdistplt.png">
+
+<p class="mb-4">Below is a plot of the standard deviations versus actual distance specifically. Clearly, the standard deviation also increases as distance increases.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab3img/9_stdev.png">
+
+<p class="mb-4">Below is a plot for average time between samples (ranging time) versus actual distance. Ranging time seems to be relatively consistent overall, up until distances are very far, at which point it increases dramatically.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab3img/10_time.png">
+
+<p class="mb-4">Next, because we are using two ToF sensors, we must now get the second working. As mentioned in the prelab, I intend on doing this by using XSHUT to shut down one ToF and reassigning the I2C address of the other. In particular, I assign one ToF to the address 0xF5, and keep the other default. I soldered the XSHUT pin of one of the ToF's to pin 4 on the microcontroller. Below is the code responsible for setting up the ToFs (including setting the address and setting them both to a short distance mode):</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab3img/11_twotof.png">
+
+<p class="mb-4">Below is a video of me demonstrating them both working (I use my hand to change the output of each ToF):</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab3vid/1_tof.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">With this, we have demonstrated that we can read from both ToFs. However, our method of doing so right now involves constantly polling the sensors - this doesn't let our microcontroller do anything else. With the distanceSensor.checkForDataReady() routine, we can check when new data is ready and adopt an interrupt-based approach to obtaining sensor data. Below is the developed code to do just this, for both ToFs:</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab3img/12_interrupt.png">
+
+<p class="mb-4">The output shows a ~5 millisecond difference between Artemis timestamps, and sensor outputs are given throughout. The current limiting factor is the speed of the CPU itself (in particular, the very expensive print statements needed to get these values in the first place).</p>
+
+<p class="mb-4">The final step is integrating this with our IMU and collecting non-blocking data without printing it. I will not include the code here because it is relatively long, but it is essentially a combination of my complimentary filter code from lab 2 and the non-blocking ToF code shown above.</p>
+
+<p class="mb-4">Below is a plot of both ToFs and the IMU being measured at the same time. All 3 sensors were taped to a box, and the box was gently rocked back and forward. The IMU seemed to produce values faster than the ToFs; for the graph, I had the ToF value repeat the closest value if there is no new change.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab3img/13_allplot.png">
+
+<p style="font-weight: bold;"> <strong>Issues Faced</strong> </p>
+
+<p class="mb-4">One issue I faced was simply forgetting to change the SHUTDOWN_PIN variable from it's default of 2 to 4. I spent an embarassing amount of time trying to debug this, thinking it was a hardware issue or even a broken ToF sensor.</p>
+
+<p style="font-weight: bold;"> <strong>References</strong> </p>
+
+<p class="mb-4">When doing this lab, I referenced the sites of Albert Sun and Sean Zhang. I used ChatGPT to help generate code for the plots.</p>
