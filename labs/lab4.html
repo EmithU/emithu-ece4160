@@ -6,4 +6,90 @@
 
 <img class="img-fluid rounded mb-4" src="assets/img/lab4.png">
 
-<p class="mb-4">Work in Progress</p>
+<p class="mb-4">This lab seeks to set up open-loop control of the car.</p>
+
+<p style="font-weight: bold;"> <strong>Prelab</strong> </p>
+
+<p class="mb-4">In order to enable open-loop control, we need to integrate the microcontroller, batteries, ToF and IMU sensors, and motor drivers into the car. In theory, we could probably get away with using just one battery to power both the microcontroller/sensors and the motors. In practice, the motors require an overwhelming amount of current to operate, significantly more than anything else on the car. Furthermore, motors tend to cause voltage fluctuations along the lanes that they're connected to. Connecting the microcontroller to a different power source prevents brownouts, better ensuring that we have some control of the car no matter what it is doing.</p>
+
+<p class="mb-4">Below is a full wiring diagram of the car, with all connections included. Note that pins 12, 13, 15, and 16 are used for controlling the motor drivers. Additionally, the motor drivers each have 2 channels; I used a solder bridge to hook them together, increasing the max current supplied to the motors.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab4img/1_wiring.png">
+
+<p style="font-weight: bold;"> <strong>Lab Tasks</strong> </p>
+
+<p class="mb-4">Note: I put together my car before realizing that the lab report requires pictures/videos of 'intermediate' steps. I did my best to obtain the required figures without disassembling the car. I apologize for the inconvinience.</p>
+
+<p class="mb-4">In previous labs, we set up the IMU and ToF sensors; we now need to set up the motor drivers. Before hooking the motor drivers to actual motors or the battery, we want to test them in a controlled environment with a power supply and oscilloscope, just to ensure that we can control them and won't break anything.</p>
+
+<p class="mb-4">I set the power supply to 3.7V (to match the approximate voltage that the battery will provide) and a current limit of 3A (to provide the drivers with substantial current while still having a ceiling, just in case). Below is my best approximation of the oscilloscope hookup:</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab4img/2_osc.jpg">
+
+<p class="mb-4">The microcontroller is responsible for sending a PWM signal to the motor drivers. Below is the code I wrote for writing the PWM signal. This provides a 50% duty cycle to the driver.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab4img/3_pwmc.png">
+
+<p class="mb-4">And below is the corresponding oscilloscope output (I took this picture before assembling the car). Note that the GND level is not perfectly flat as expected. This is almost certainly due to parasitic capacitence between the actual output signal and what is being measured by the oscilloscope. The pulse is clearly visible, giving me the confidence that we can properly control the motor driver.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab4img/4_pwmo.jpg">
+
+<p class="mb-4">With this, we can now safely attach the motor drivers to the motors. Below is a video of one set of wheels spinning forwards, and another of that same set spinning backwards. Note that this video was taken after the car was fully assembled, so the drivers were being powered by the battery. </p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab4vid/1_spinboth.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">Below is the code resulting in this behavior:</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab4img/5_spinbothc.png">
+
+<p class="mb-4">With one motor driver working, the path to getting 2 motor drivers working is clear. Below is a video of both motor driver working, at the same time, off battery power.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab4vid/2_spinall.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">With that out of the way, next is wiring all of the components into the car. I tried to minimize wire lengths, keep different signals apart, and make ports as accessible as possible. This led me to the configuration pictured below.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab4img/6_diagram.jpg">
+
+<p class="mb-4">There is a chance (from the manufacturer) that each of our motors rotate at different rates, requiring us to fix this offset in software so that our car can move in straight lines. Unfortunately for me, I have motors with this behavior. Below is a video of the robot moving before any calibration.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab4vid/3_nocalib.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">I wanted to correct this before finding the limits of the PWM values I can input, so (for now) I picked a PWM value both motors could work with, 200. The car drifts to the left over time, but not too significantly. This indicates that the right set of wheels are rotating at a faster rate than the left. Through trial and error, it was found that setting the PWM of the left wheel to 0.94x of the right wheel allowed the car to move straight, as demonstrated below.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab4vid/4_calib.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">In particular, I created SET_PWMA and SET_PWMB Bluetooth commands to let me rapidly guess and check. Once I found my multiplier of 0.94x, I created a SET_PWM command to let me set both motors at once; it is pictured below.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab4img/8_setpwm.png">
+
+<p class="mb-4">With this, I wanted to find the lower and upper bound of PWM values I could input before the motors refuse to work. A 100% duty cycle (input value of 255) was found to work on both motors, leaving the lower bound to discovery through trial and error. It was found that the two motors seemed to have different lower bounds; perhaps this helps to explain the need for a calibration factor earlier on.</p>
+
+<p class="mb-4">In particular, when letting the wheels spin freely (and not on a surface), one pair of wheels spinned unhindered while the other seemed to need more power to start. Because we previously determined that the car is capable of moving in a straight line for at least 6 feet, this difference is largely negligible for now, but might come into play for labs 9-12 when we need the car moving very slow.</p>
+
+<p class="mb-4">If we assume that both wheels require the same starting PWM to move, a value of 50 (~20%) seems sufficient. Assuming this is most likely fine for labs 5-8, but this will probably have to be revisited for labs 9-12.</p>
+
+<p class="mb-4">Finally, I present full open loop control. I implement turning by essentially doing the inverse of the calibration above; I supply one motor with a significantly higher PWM value than another. Below is a video of my car moving through the ELL.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab4vid/5_openloop.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">And below is the code resulting in this movement.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab4img/7_openloop.png">
+
+<p style="font-weight: bold;"> <strong>Issues Faced</strong> </p>
+
+<p class="mb-4">When completing this lab, my IMU started acting up and was giving unusual results. Despite not technically being a requirement for this lab, I knew that the pain from fixing this now would save far more pain later. This was fixed by better strapping it down and ensuring it was staying as still as possible.</p>
+
+<p style="font-weight: bold;"> <strong>References</strong> </p>
+
+<p class="mb-4">When doing this lab, I referenced the sites of Albert Sun, Sean Zhang, and Stephan Wagner.</p>
