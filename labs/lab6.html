@@ -14,7 +14,61 @@
 
 <p style="font-weight: bold;"> <strong>Lab</strong> </p>
 
+<p class="mb-4">For Lab 5, slight oscillations are forgivable because the amplitude of oscillation is small relative to the size of the car itself. For this lab, they need to be mitigated at all costs because the effects of even small oscillations are significantly more noticable. I also think that labs 9-12 would benfit significantly from very precise orientiation control. As such, I theorized that P-only control will not be sufficient.</p>
+
+<p class="mb-4">Loosely - P focuses on where the car is, I focuses on where the car has been in the past, and D focuses on where the car will be in the future. I orignally chose to pursue PD control specifically for this lab, as the car seemed to have very minimal steady-state error in lab 5 and this lab benefits heavily from a stronger garauntee of precision. In the end, I found that P-only control was sufficient. A broader explanation is presented at the end of the report.</p>
+
+<p class="mb-4">As for the IMU - I like the idea of having an off-board chip do the sensor fusion work for me. It saves CPU cycles and minimizes yaw drift through algorithms I don't need to develop (assuming that I set up the system correctly). As such, I use the onboard DMP, following the directions linked on the lab website.</p>
+
+<p class="mb-4">By doing this, I avoid many of the common pitfalls that come with raw accel/gyro data. Digital integration might miss events between two timesteps, and might also be suseptible to noise. This could be fixed by low-passing the signal. Furthermore, my sensor did not seem to have bias; if it did, a low-pass would once again help to 'dampen' the effects of the bias. The max rotational velocity that the gyroscope can read is +/- 2000 dps when confiugred at it's fastest mode, which is far faster than we would ever need.</p>
+
+<p class="mb-4">Once again, the DMP avoids us making manual computations. That being said - it would not make sense for us to take the derivative of an integral, those are inverse operations. If we did have a D-term, changing a set point mid-run would be bad if it directly relied on the error term, as this instantaneous change would then be very large. This could be alleviated by only using sensor measurements for the D term. Even then, the D term would be suseptible to noise, and low passing it is certainly a good idea. </p>
+
+<p class="mb-4">Just to ensure that this is all working, I wrote a case that pulls from the DMP, and computes yaw 1200 times. Below is the microcontroller code doing just that:</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab6img/1_dmp.png">
+
+<p class="mb-4">And below is a plot showing the results vs. time as I rocked the car in the yaw direction:</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab6img/2_dmpplot.png">
+
+<p class="mb-4">The microcontroller code works such that it iterates every time the code it is 'housing' completes. From this, we can compute the time it takes to get a yaw value - we are obtaining values at a frequency of 59.71Hz, which should be more than enough for our PID controller.</p>
+
+<p class="mb-4">With this, we are prepared to start implementing PD control. I create 3 configurable variables - one for kp, one for kd, and one more for the target yaw. It is generally good to get basic P control working first before moving on to PD/PI/PID; below is the code I have for P control:</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab6img/3_ponly.png">
+
+<p class="mb-4">There are a number of things of note going on here. Firstly - I have a few basic remappings to allow for inputs between [0,360]. Next, I have logic checking if p_val is positive or negative, and have the car turn CW or CCW as a result.</p>
+
+<p class="mb-4">After trial and error, I found that a kp of 4.0 was suitable for this system. Below are 2 videos of the car rotating on carpet, and 1 of it resisting external input:</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab6vid/1_carpet.mp4" type="video/mp4">
+</video>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab6vid/2_carpet.mp4" type="video/mp4">
+</video>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab6vid/3_kick.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">And below is a plot corresponding to the first video:</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab6img/4_firstcarpet.png">
+
+<p class="mb-4">Finally, here is a video of the car performing a 180 degree turn on a smoother surface. I did have to change kp to 2.5 for this to work, or else the car would start slipping. I don't believe that the I or D terms would help significantly because rotationally, the car was relatively stable; the slipping occurred linearly.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab6vid/4_wood.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">With this, the car is oscillating very little, if at all. I don't feel that a D term would add anything significant, and so I chose not to pursue it. This honestly surprised me; I think that the rotational 'slipperiness' of the car might be helping it avoid the expected angular oscillatory behavior. I would pursue PD control further, but I really don't see a good way of testing it as the car doesn't oscillate on either smooth or rough surfaces with P-only control. There is a noticable overshoot, but the car is still fast and responsive with it's recovery, and so I am happy with calling this 'good enough'.</p>
+
 <p style="font-weight: bold;"> <strong>Issues Faced</strong> </p>
+
+<p class="mb-4">I was facing issues with the car not being able to spin whatsoever. Turns out that this was due to friction between the ground and the car, and was fixed by placing tape over the wheels. Perhaps this would have helped in lab 5 as well, or maybe not due to the slippage. In any case, the tape fixed many of my problems with this lab instantly.</p>
 
 <p style="font-weight: bold;"> <strong>References</strong> </p>
 
