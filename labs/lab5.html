@@ -1,0 +1,111 @@
+<h2 class="portfolio-modal-title text-secondary text-uppercase mb-0">Lab 5</h2>
+<div class="divider-custom">
+  <div class="divider-custom-line"></div>
+  <div class="divider-custom-line"></div>
+</div>
+
+<img class="img-fluid rounded mb-4" src="assets/img/lab5.png">
+
+<p class="mb-4">This lab seeks to set up closed-loop control of the car through PID.</p>
+
+<p style="font-weight: bold;"> <strong>Prelude</strong> </p>
+
+<p class="mb-4">Before starting with the report, I wanted to mention my changes to my codebase. I was getting fed up with scrolling through one massive file, so I set up the ability to flash the board through VSCode and split the codebase into many files. Each lab now has it's own C++ file in which it's corresponding functions are defined, and my main ble_arduino file just contains a few functions and the main switch statement. As such, screenshots of Arduino code will look different from this lab onwards than from previous labs.</p>
+
+<p style="font-weight: bold;"> <strong>Prelab</strong> </p>
+
+<p class="mb-4">Throughout this course so far, I have been very consistent on always collecting a full set of data before sending it through Bluetooth. For any useful datapoint, I initialize arrays for them at startup, populate them as necessary, and send them.</p>
+  
+<p class="mb-4">I use indexes as a limit (and not time) to avoid needing to think about going over a buffer. For example, if I start the car with arrays of size 1000, then any data collection code will iterate 1000 times, then stop. The drawbacks of this are that I can't change the size without reflashing the car and that I can't directly input time, but I find that ~1100 samples generally gets me 5 seconds of data and that I only seldomnly need to change this value, so the benefits outweigh the drawbacks in my eyes.</p>
+
+<p class="mb-4">To verify and debug our algorithm, it would help to know time, the P/I/D terms, and ToF readings. We can tell which parameter needs tuning roughly by the physical behavior of the car, and these terms will give us a more precise understanding of how much exactly to adjust each term by.</p>
+
+<p class="mb-4">Below are screenshots of array initilization (arrays for time and ToF readings were made in previous labs and reused here) and array population respectively (code for sending the values not shown for brevity, but it is essentially identical to how values were sent in previous labs).</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab5img/1_arr.png">
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab5img/2_getpid.png">
+
+<p class="mb-4">Finally, below is my Python event handler code, responsible for collecting all of these values.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab5img/3_pidnotif.png">
+
+<p style="font-weight: bold;"> <strong>Lab</strong> </p>
+
+<p class="mb-4">Firstly, we need to decide what controller specifically we want to implement. Each of P/I/D introduce more dimensions of control. In general, the P term reacts to present error, the I term reacts to accumulated error, and the D term reacts to the rate of change of error. In the context of a car avoiding an obstacle - the P term loosely dictates how quickly we can react, the I term dictates how precisely we can react, and the D term dictates how accurately we can react.</p>
+
+<p class="mb-4">More specifically - P control alone will let us react, though the car will struggle to reach a target due to steady-state error. A well-tuned PI controller won't see any oscillatory behavior, but will probably still see an initial overshoot. A well-tuned PD controller might be slightly off target due to steady-state error, but will get to a target smoothly. A well-tuned PID controller will get to the intended target seeming seamlessly.</p>
+
+<p class="mb-4">One thing that engineering school taught me is that the easiest solution tends to be the best solution for all parties involved, as long as it is 'good enough'. For this lab, I will define 'good enough' to mean stopping ~1 foot away from a wall after moving towards it at full speed, even if it takes a little bit to settle. With that, I will pursue P-only control for this lab, though I might investigate the I and D terms in the future if I feel that they are necessary.</p>
+
+<p class="mb-4">One thing that this class taught me is that almost every value, for any part of the car, needs to be tuned and re-tuned constantly. As such, I set up commands to let me modify kp, ki, and kd on the fly. Below is the Arduino code for kp.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab5img/4_kp.png">
+
+<p class="mb-4">In lab 3, I chose the 'low' range on the ToF specifically because I knew most tasks we are doing with the car involve short ranges; I will continue to use that mode for this lab. With this mode, we have a sampling frequency of ~20Hz based on lab 3. This is not ideal. Especially if I decide to introduce I and/or D later on, we need to be sampling as fast as possible or else the robot will not be responsive enough to behave smoothly.</p>
+
+<p class="mb-4">To help alleviate this, there are two things we can do. Firstly, we can manually set the ToF timing budget to 20 ms through use of the command distanceSensor1.setTimingBudgetInMs(20000). Below are plots for the variance in data and for average sampling interval (which were collected in lab 3).</p>  
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab3img/9_stdev.png">
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab3img/10_time.png">
+
+<p class="mb-4">I use them again here because they show how even small changes in sampling intervals dramatically effect noise in measurement data. By decreasing the timing budget, we are routinely decreasing the precision of our data. With that said, the above standard deviations are 2-3mm at worst; the distances we are concerned about are multiple degrees of magnitude larger than this, and so the decreased precision is a good tradeoff for the increased control loop rate. </p>
+
+<p class="mb-4">Secondly, we can perform linear interpolation on the sensor data. This decouples our control loop from ToF readings entirely, making the true bottleneck for control loop frequency computational costs from here on out.</p>
+
+<p class="mb-4">Below is the code responsible for performing linear interpolation. We clamp values added to the ToF readings at 1200 as that is the max value supported based on our configurations.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab5img/5_interp.png">
+
+<p class="mb-4">For the data to be truly decoupled, I stall the car until both ToFs produce a valid reading. This prevents a set of undefined values from corrupting the PID controller. Below is the code responsible for doing so.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab5img/6_busywait.png">
+
+<p class="mb-4">With this, we can now produce a continuous stream of ToF data that is accurate enough for our purposes. Below is a graph of reported ToF readings after all of this work is performed, as an object is moved closer and farther in front of it.</p>
+
+<img class="img-fluid rounded mb-4 big-image"  src="labs/images/lab5img/7_tofc.png">
+
+<p class="mb-4">We can (finally) proceed to implementing P control. Below is a screenshot of the code:</p>
+
+<img class="img-fluid rounded mb-4 big-image"  src="labs/images/lab5img/8_pctrl.png">
+
+<p class="mb-4">For computing the input PWM, I simply use kp*error and clamp it around our min and max PWM values; this lets the algorith react as it gets closer/farther from the target, while avoiding illegal values. If we need to move backwards, we negate p_val because the error will be negative and we want to work with a positive number, and then clamp it once again.</p>
+
+<p class="mb-4">One problem I had during testing is that the pwm_min changes, most likely due to battery levels. I tried to fix this by adding a 'kick' which engages if the ToF shows a constant reading despite the motors trying to move, but the real fix is just recharging the batteries.</p>
+
+<p class="mb-4">With this, we now have a usable P controller, and can start finding values which let the car achieve the goal of stopping exactly 304mm in front of a wall. We can start at essentially any arbuitrary distance becasue we clamped the ToF readings to 1200; the car will move at full speed until it gets a valid reading, then slow down.</p>
+
+<p class="mb-4">We can determine how to adjust kp by analyzing the motor input plot (I plotted P, but the motor input and P only differ by a constant factor) and see if the motor is too aggressive or not agggressive enough relative to the perceived distance.</p>
+
+<p class="mb-4">With that, below are 3 videos of the motor operating with a kp of 0.115, each at random distances from the wall:</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab5vid/1_trial1.mp4" type="video/mp4">
+</video>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab5vid/2_trial2.mp4" type="video/mp4">
+</video>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab5vid/3_trial3.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">And below is a video of the robot being nudged and still maintaining the distance:</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab5vid/4_trial4.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">Below are the distance vs. time and kp vs. time plots corresponding to the first video. From the plots, we can determine that the max speed of the robot is 1.4 m/s.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab5img/9_graph1.png">
+
+<p style="font-weight: bold;"> <strong>Issues Faced</strong> </p>
+
+<p class="mb-4">I originally tried to have the robot stop very close to a wall (less than 100mm) because my room is very small. I got very inconsistent results with this; it took me a while to determine that the culprit was the ToF being less accurate when you try to get extremely close to an object.</p>
+
+<p style="font-weight: bold;"> <strong>References</strong> </p>
+
+<p class="mb-4">When doing this lab, I referenced the sites of Albert Sun, Sean Zhang, and Stephan Wagner. I used Claude Sonnet 4.6 to help generate code for the plots, and to help with debugging microcontroller code.</p>
