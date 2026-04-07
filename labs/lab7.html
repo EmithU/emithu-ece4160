@@ -8,11 +8,125 @@
 
 <p class="mb-4">This lab seeks to set up a Kalman Filter in an effort to accomplish the tasks of lab 5 faster.</p>
 
-<p style="font-weight: bold;"> <strong>Prelab</strong> </p>
+<p style="font-weight: bold;"> <strong>1. Estimate Drag and Momentum</strong> </p>
 
-<p style="font-weight: bold;"> <strong>Lab</strong> </p>
+<p class="mb-4">In order to build a space system model of our robot, we first need to understand it's step response. I use a PWM of 125 as this is around what I used in lab 5; the car can cap out at around PWM=200, so this represents a u term of 0.625. Below is a video of the car running into the wall.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab7vid/1_straight.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">And below are distance vs. time, velocity vs time, and PWM vs. time graphs of the car from this video. Note that ToF data stops changing even as a PWM signal continues to be applied; this corresponds to when the car crashes into my schoolbag in the video. I apply a low-pass filter to the velocity plot because what we are specifically trying to do is find points for obtaining the steady-state velocity and rise time of our car, and erroneous noise would make this analysis difficult; through trial and error, I used a cutoff frequency of 5Hz.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab7img/1_tofplt.png">
+
+<p class="mb-4">Taking a sample between t=59000 and t=59500, we can see that the car is cleary in it's linear regime, and I computed a steady-state velocity of 2.092 m/s.</p>
+
+<p class="mb-4">To compute the rise time, I fit the low-passed velocity plot to an exponential function, which I obtained through the curve_fit function from Scipy. Below is a plot showing just this.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab7img/2_risetime.png">
+
+<p class="mb-4">Given this, we can now numerically compute our 90% rise time value, which turns out to be 468ms. Our speed at the 90% rise time mark is 1.886 m/s.</p>
+
+<p style="font-weight: bold;"> <strong>2. Initialize KF (Python)</strong> </p>
+
+<p class="mb-4">Using the values obtained above, we can now construct our A and B matrices.</p>
+
+<p class="mb-4">For the d term: we assume a u = 0.625 and a steady state speed of 2092 mm/s. This gives us a d = 0.000298 s/mm. </p>
+
+<p class="mb-4">For the m term: we assume that our 90% rise time is 468ms. This gives us an m = 0.000139 s^2/mm.</p>
+
+<p class="mb-4">For delta_t: this reflects the time between distance readings. My code collects samples at a rate of 10ms, and simply uses the previous ToF value if a new one isn't ready. As such, that is our delta_t here.</p>
+
+<p class="mb-4">With this, we have the following code for generating these matrices, and these resultant matrices.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab7img/3_matcode.png">
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab7img/4_mat.png">
+
+<p class="mb-4">We identify the C matrix as [1, 0] because ToF values decrease as we approach the wall. With this, we can initialize our state vector x as x = np.array([TOF[0],[0]]), where TOF[0] represents the initial ToF reading from the wall.</p>
+
+<p class="mb-4">We now need to specify our process and sensor noise covariance matrices. Going back to lab 3 once again, we seen that our ToFs have a standard deviation of ~4.0mm at worst. In an effort to be conservative with measurements and to account for EMI effects, we will take 10.0 as our 'nominal' standard deviation, and our sigma_3. Below is the form for measurement noise.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab7img/5_meas.png">
+
+<p class="mb-4">For our process noise, we need to find our sigma_1 and sigma_2 values. Given all of this information, we can assume an initial guess of sqrt(10**2/0.10) = 31.62 for both of sigma_1 and sigma_2. Below is the form for process noise.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab7img/6_proc.png">
+
+<p style="font-weight: bold;"> <strong>3. Implement and test your Kalman Filter in Jupyter (Python)</strong> </p>
+
+<p class="mb-4">We can now sanity check our parameters/algorithm by implementing the filter into our Jupyter environment first using lab 5 data; it is easier to catch critical bugs/issues in a simulation environment rather than while the car is moving. We are given the following function. As for the 4 paramters - mu represents the state vector, sigma represents the state covariance matrix, u represents the control input, and y represents our raw measurement.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab7img/7_kf.png">
+
+<p class="mb-4">I implemented linear interpolation before performing any PID control in lab 5; we need non-interpolated data here, and so I needed to re-run the test. Below are the resultant distance vs. time and PWM vs. time plots.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab7img/8_lab5plt.png">
+
+<p class="mb-4">We can now start attempting to apply our Kalman filter. I wanted this code to very closely mimic what would be deployed onto the microcontroller. For the sake of code simplicity, I wanted the kalman filter function to be the 'provider' of ToF readings when enabled. I plan on having a boolean for enabling/disabling the kalman filter, and have the filter itself deliver filtered values if true. This makes things a bit more painful now, but should make working with the filter very simple later.</p>
+
+<p class="mb-4">To accomplish all of this, I developed the following Kalman Filter function.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab7img/9_kf.png">
+
+<p class="mb-4">The idea is that a boolean controls if we are using the filter or not. If false, we just return the raw ToF reading. If true, we run the filter and return the filtered value. My code does not have a 'notion' of negative PWM values, but does have separate move forward and backward functions; when they get called, I will them also moify a global boolean which the filter checks. I also added checks for if we are in an init state to prevent bad initial behavior.</p>
+
+<p class="mb-4">With our initial parameters for sigma1, sigma2, and sigma3, we get the following plot.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab7img/10_firsttof.png">
+
+<p class="mb-4">The filter is fitting way too closely to the actual reading. This implies that we want to decrease sigma1/2, and increase sigma3; we want to trust our model more and the actual data less. Below is a plot with sigma1/2 = 15, sigma3 = 50.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab7img/11_filter2.png">
+
+<p class="mb-4">This is much better, but the filter could put a bit more faith in the model to get rid of the smaller jumps. Below is a plot with a sigma1/2 = 15, sigma3 = 75.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab7img/12_filter3.png">
+
+<p class="mb-4">This is now looking even better. There are still small 'ripples', implying that we should increase sigma3 and decrease sigma1/2 even further. Below is a plot of 1/2 = 10, sigma3 = 125.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab7img/13_filter4.png">
+
+<p class="mb-4">The plot is now looking very smooth, but the delay inherent to Kalman Filters is now starting to become very obvious. We can deal with some delay, but too much might cause the car to 'react' when it really shouldn't be; this can be especially bad for me because I implemented P-only control, and this could increase the steady-state oscillation. At this point, we have verified that the algorithm and our parameters are usable enough to consider deploying onto the car, and further adjusting the parameters makes more sense to do on the actual car.</p>
+
+<p style="font-weight: bold;"> <strong>4. Implement the Kalman Filter on the Robot</strong> </p>
+
+<p class="mb-4">Below is my C-implementation of the above filter.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab7img/14_ckal.png">
+
+<p class="mb-4">The compiler warnings are complaining about truncations from doubles to floats; in our case, values will never be big enough to necessitate a double, so I chose to ignore them.</p>
+
+<p class="mb-4">To find a more precise delta_t, I wrote a function to find the average loop execution time. Below is the function. This function is not completely accurate because it does not take into account the time for the PID loop to run. With that said, my P-only controller only does a small amount of basic arithemtic and performs analogWrite calls; these operations add up to taking a few dozen microseconds, and so are negligible. It was found that the average execution time is 0.001 seconds.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab7img/15_avg.png">
+
+<p class="mb-4">I don't like moving the car back and forth when testing. I opted to first 'sanity check' the algorithm by running the PID loop with an unplugged battery. If we set our target distance equal to where the car is idle, the filter should recognize near 0 change. I started with sigma1/2 = 31.62 , sigma3 = 10 (our initial guess from above). Initial attempts showed very strange divergences; this was due to our deadband PWM corrupting the filter estimation. After forcing an input of 0 when the PWM is at it's deadband, the following plot was generated.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab7img/16_tof1.png">
+
+<p class="mb-4">The sigmas clearly need adjusting, but we are clearly seeing a (somewhat) expected output without anything diverging. I decided to start having the car actually move. Below is the plot of the car attempting to reach a target with the same sigmas as above.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab7img/17_tof2.png">
+
+<p class="mb-4">We are following the actual readings way too much. I ran another trial with sigma1/2 = 10, sigma3 = 25.</p>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab7img/18_tof3.png">
+
+<p class="mb-4">Still too much. At this point, it is a process of trial and error. I eventually landed on sigma1/2 = 10, sigma3 = 125, which is also where I landed on the simulation. Below is a video of the winning run, as well it's respective plot.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab7vid/2_final.mp4" type="video/mp4">
+</video>
+
+<img class="img-fluid rounded mb-4 big-image" src="labs/images/lab7img/19_tof4.png">
+
+<p class="mb-4">Overall, the filter seems to be working well. The short delay did not cause the oscillatory behavior I expected, and the car is overall more responsive than with just the raw readings.</p>
 
 <p style="font-weight: bold;"> <strong>Issues Faced</strong> </p>
+
+<p class="mb-4">Between lab 4 and now, I added tape to the wheels of the car. This changed the 'offset' between the input PWM value and the resultant linear speed of each motor, and so I needed to re-find that value. I also needed to re-do data recording from lab 5. I also originally ran my filter on linearly interpolated ToF data, which both defeats the point of the Kalman Filter and made it hard to adjust.</p>
 
 <p style="font-weight: bold;"> <strong>References</strong> </p>
 
