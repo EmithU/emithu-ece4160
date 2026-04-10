@@ -6,4 +6,48 @@
 
 <img class="img-fluid rounded mb-4" src="assets/img/lab8.png">
 
-<p class="mb-4">Work in progress</p>
+<p class="mb-4">This lab seeks to perform a stunt with the car.</p>
+
+<p style="font-weight: bold;"> <strong>Controlled Stunts</strong></p>
+
+<p class="mb-4">We have the option of performing either a flip or a drift with the car. I chose to do a drift because it doesn't require a sticky mat to pull off.</p>
+
+<p class="mb-4">This car needs to move fast. Furthermore, the car is prone to slipping; we need to be able to detect when to flip early to account for additional distance travelled slipping, and we need to be confident in our reading. This motivates our use of the Kalman Filter from lab 7 here, as it has proven to be capable of providing fast, capable readings.</p>
+
+<p class="mb-4">The drift could really be broken down into two distinct phases. Phase 1 involves the initial journey towards the wall, while phase 2 involves the actual turn. Each phase has its own distinct set of challenges and utilizes different parts of the system developed throughout the course.</p>
+
+<p style="font-weight: bold;"> <strong>Phase 1</strong></p>
+
+<p class="mb-4">At first, the car needs to move fast. This is both to make the stunt a true 'stunt', and to give it enough momentum that it can later do a full drift. I will have the car start at a PWM of 150, and have it maintain this PWM once it gets close to the wall.</p>
+
+<p class="mb-4">Next, we need to identify when the car is close to a wall. As mentioned previously, I use my Kalman filter developed in lab 7. I decided to initiate the drift when the car gets a distance reading of 700; this gives us ample time for the car to perform it's 180 degree turn.</p>
+
+<p style="font-weight: bold;"> <strong>Phase 2</strong></p>
+
+<p class="mb-4">At this point, the car has now detected that it needs to perform the turn. We first set the PWM of both motors to 0; the car should have enough linear momentum at this point to keep travelling forwards as it turns.</p>
+
+<p class="mb-4">After this, we use our angular P-only PID algorithm to perform the 180 degree turn. Our use of the DMP, which can run at ~60Hz, should be fast enough to make the car turn roughly 180 degrees. Furthermore, the overshoot we saw in lab 6 will be essentially cancelled out by the linear momentum that the car has at this point. In theory, this should enable us to perform the turn.</p>
+
+<p style="font-weight: bold;"> <strong>DRIFT!</strong></p>
+
+<p class="mb-4">Below is the microcontroller code implementing all of this.</p>
+
+<p style="font-weight: bold;"> <strong>Discussion</strong></p>
+
+<p class="mb-4">All in all, the many hours I spent developing the orientation PID algorithm and (especially!!!!!) the Kalman Filter paid off massively here - I think I spent more time on Lab 1 than I did for this lab, it was as simple as write the algorithm and fine-tune it.</p>
+
+<p class="mb-4">A consequence of this is that I don't have a great blooper reel. In it's place, I include a video, from lab 6, of me discovering just how unstable my car's orientation control is on smooth surfaces.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab8vid/2_rot.mp4" type="video/mp4">
+</video>
+
+<p style="font-weight: bold;"> <strong>Issues Faced</strong></p>
+
+<p class="mb-4">In between labs 7 and 8, I changed the tape on the wheels to one which is slightly less smooth. This was in an effort to make the car slip less, but required me to recompute kp for rotations. Surprisingly, my Kalman filter worked without any changes though.</p>
+
+<p class="mb-4">For the Kalman Filter - my guess is that the difference in friction isn't significant enough to truly affect it's predictions. </p>
+
+<p style="font-weight: bold;"> <strong>References</strong></p>
+
+<p class="mb-4">When doing this lab, I referenced the sites of Albert Sun, Sean Zhang, and Stephan Wagner. I used Claude Sonnet 4.6 to help generate code for the plots, and to help with debugging microcontroller code.</p>
