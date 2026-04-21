@@ -6,7 +6,7 @@
 
 <img class="img-fluid rounded mb-4" src="assets/img/lab10.png">
 
-<p class="mb-4">This lab seeks to implement ground localization through a Bayes filter.</p>
+<p class="mb-4">This lab seeks to implement ground localization through a Bayes filter on a simulation.</p>
 
 <p style="font-weight: bold;"> <strong>Background</strong></p>
 
@@ -347,6 +347,10 @@
 <img class="img-fluid rounded mb-4" src="labs/images/lab10img/8_sim.png">
 
 <p class="mb-4">Clearly, the Bayes filter (blue) does a far better job at predicting the ground truth location (green) than the plain odometry alone (red). We can see it failing when it has to trace a very large distance, which in the real world would go beyond what the ToF is able to read. This is most likely happening because our characterization of ToF noise does not take into account values when we are going beyond the specs of the ToF, and so the filter tries to extrapolate from this mischaracterization. This could possibly be fixed by detecting for very high ToF values and slightly modifying the behavior of the filter when this is detected.</p>
+
+<p class="mb-4">Below are the results of another run. This run seems a lot cleaner, which gives me more confidence that, when not faced with edge cases, the Bayes filter implementation in this lab does perform effectively.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab10img/9_sim2.png">
 
 <p style="font-weight: bold;"> <strong>Issues Faced</strong></p>
 
