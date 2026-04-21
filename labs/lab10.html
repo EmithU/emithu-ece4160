@@ -1,0 +1,357 @@
+<h2 class="portfolio-modal-title text-secondary text-uppercase mb-0">Lab 10</h2>
+<div class="divider-custom">
+  <div class="divider-custom-line"></div>
+  <div class="divider-custom-line"></div>
+</div>
+
+<img class="img-fluid rounded mb-4" src="assets/img/lab10.png">
+
+<p class="mb-4">This lab seeks to implement ground localization through a Bayes filter.</p>
+
+<p style="font-weight: bold;"> <strong>Background</strong></p>
+
+<p class="mb-4">In previous labs, we designed and implemented a Kalman filter for predicting ToF data while incorporating knowedge of the car's physical characteristics. Kalman filters assume that noise is normally distributed; while this assumption can be reasonably made for ToF estimation, it cannot be made for ground localization due to the complexity of the task and multiple sources of noise present forming an unknown noise distribution.</p>
+
+<p class="mb-4">This motivates a Bayes filter. Below is pseudocode representing the algorithm.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab10img/1_bayes.png">
+
+<p class="mb-4">A Bayes filter is structurally similar to a Kalman filter; there is a prediction step (line 3) followed by an update step (line 4), where the prediction step tries to 'fill in the gaps' before new data is recieved. Like a Kalman filter, a Bayes filter returns a PDF representing a spread of possible values, and refines it as more and more data comes in. Unlike a Kalman filter (where we frequently disregard the variance altogether and just treat the mean as our 'nominal' value), the returned distribution is not necessarily normal.</p>
+
+<p class="mb-4">The advantages of this are (primarily) twofold. Firstly, as mentioned before, noise does not need to be Gaussian for the Bayes filter to work effectively. Secondly, if values could be multimodal in nature (meaning that it's equally likely for a value to be one of n possibilities), a Bayes filter would properly encompass this, while a Kalman filter would not due to it's underlying assumptions about noise. The disadvantages are that the Bayes filter is more computationally expensive than a Kalman filter.</p>
+
+<p class="mb-4">In the case of ground localization, we have no choice but to use a Bayes filter. It is a good idea to simulate the algorithm first, as this lets us isolate algorithmic challenges from implementation challenges.</p>
+
+<p class="mb-4">To implement it, we need the following functions: compute_control(curr_pose, prev_pose), odom_motion_control(curr_pose, prev_pose, u), pred_step(curr_odom, prev_odom, threshold), sensor_model(obs), update_step().</p>
+
+<p style="font-weight: bold;"> <strong>1. compute_control(curr_pose, prev_pose)</strong></p>
+
+<p class="mb-4">The idea here is that, given a current and previous odometry pose, we should be able to obtain controls information. Below is the underlying math to make this happen.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab10img/2_compute.png">
+
+<p class="mb-4">And below is the code implementation of this.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab10img/3_computeC.png">
+
+<p style="font-weight: bold;"> <strong>2. odom_motion_control(curr_pose, prev_pose, u)</strong></p>
+
+<p class="mb-4">Given the previous function, we now want to calculate the probability of these parameters. Below is the programmed implemetation of this.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab10img/4_odom.png">
+
+<p style="font-weight: bold;"> <strong>3. pred_step(curr_odom, prev_odom, threshold)</strong></p>
+
+<p class="mb-4">We now have enough information to make a prediction of the car's location. Using the motion model from step one, along with the prediction computed in step two, we can form a PDF consisting of the probabilities that the car is on one particular spot of the grid. We ignore values below 0.0001 to reduce computational costs, they add nearly nothing anyways. Below is the code performing this.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab10img/5_pred.png">
+
+<p style="font-weight: bold;"> <strong>4. sensor_model(obs)</strong></p>
+
+<p class="mb-4">This is essentially support for our update step. It takes a true measurement and returns a Gaussian, where the 'peak' represents the actual reading and standard deviation reflects how 'noisy' the sensor is. Below is the code performing this.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab10img/6_sensor.png">
+
+<p style="font-weight: bold;"> <strong>5. update_step()</strong></p>
+
+<p class="mb-4">We finally have everything we need to perform the update step. This just takes the work done in previous functions to predict our belief of where we are based on previous beliefs and sensor readings. Below is the code performing this.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab10img/7_update.png">
+
+<p style="font-weight: bold;"> <strong>Simulation</strong></p>
+
+<p class="mb-4">Finally, we can run the simulation. Below is a video of the simulation working.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab10vid/1_vid.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">And below is a copy of the stats after each iteration (as a dropdown).</p>
+
+<details class="mb-4">
+  <summary style="cursor:pointer;">Show stats log</summary>
+  <pre style="white-space:pre-wrap; font-size:0.8rem; margin-top:0.5rem;">----------------- 0 -----------------
+2026-04-21 13:43:13,772 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:13,786 | INFO     |: GT index         : (6, 3, 7)
+2026-04-21 13:43:13,786 | INFO     |: Prior Bel index  : (np.int64(3), np.int64(2), np.int64(7)) with prob = 0.1533277
+2026-04-21 13:43:13,786 | INFO     |: POS ERROR        : (0.892, 0.524, -9.439)
+2026-04-21 13:43:13,786 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:16,796 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:43:16,809 | INFO     |: GT index      : (6, 3, 7)
+2026-04-21 13:43:16,809 | INFO     |: Bel index     : (np.int64(6), np.int64(3), np.int64(7)) with prob = 0.9465574
+2026-04-21 13:43:16,809 | INFO     |: Bel_bar prob at index = 1.5295082219963646e-25
+2026-04-21 13:43:16,809 | INFO     |: GT            : (0.282, -0.086, 320.561)
+2026-04-21 13:43:16,810 | INFO     |: Belief        : (0.305, -0.305, -30.000)
+2026-04-21 13:43:16,810 | INFO     |: POS ERROR     : (-0.023, 0.219, 350.561)
+2026-04-21 13:43:16,810 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 1 -----------------
+2026-04-21 13:43:18,881 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:18,891 | INFO     |: GT index         : (7, 2, 5)
+2026-04-21 13:43:18,891 | INFO     |: Prior Bel index  : (np.int64(6), np.int64(2), np.int64(5)) with prob = 0.1789714
+2026-04-21 13:43:18,891 | INFO     |: POS ERROR        : (0.202, 0.096, 367.643)
+2026-04-21 13:43:18,892 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:21,918 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:43:21,926 | INFO     |: GT index      : (7, 2, 5)
+2026-04-21 13:43:21,926 | INFO     |: Bel index     : (np.int64(6), np.int64(2), np.int64(5)) with prob = 1.0
+2026-04-21 13:43:21,927 | INFO     |: Bel_bar prob at index = 0.1789714071802847
+2026-04-21 13:43:21,927 | INFO     |: GT            : (0.510, -0.521, 657.643)
+2026-04-21 13:43:21,927 | INFO     |: Belief        : (0.305, -0.610, -70.000)
+2026-04-21 13:43:21,927 | INFO     |: POS ERROR     : (0.206, 0.088, 727.643)
+2026-04-21 13:43:21,928 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 2 -----------------
+2026-04-21 13:43:22,984 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:22,992 | INFO     |: GT index         : (7, 2, 4)
+2026-04-21 13:43:22,992 | INFO     |: Prior Bel index  : (np.int64(7), np.int64(4), np.int64(2)) with prob = 0.1301768
+2026-04-21 13:43:22,992 | INFO     |: POS ERROR        : (-0.099, -0.521, 765.487)
+2026-04-21 13:43:22,993 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:26,008 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:43:26,010 | INFO     |: GT index      : (7, 2, 4)
+2026-04-21 13:43:26,010 | INFO     |: Bel index     : (np.int64(6), np.int64(2), np.int64(4)) with prob = 1.0
+2026-04-21 13:43:26,011 | INFO     |: Bel_bar prob at index = 2.551310839240448e-14
+2026-04-21 13:43:26,011 | INFO     |: GT            : (0.510, -0.521, 994.723)
+2026-04-21 13:43:26,011 | INFO     |: Belief        : (0.305, -0.610, -90.000)
+2026-04-21 13:43:26,011 | INFO     |: POS ERROR     : (0.206, 0.088, 1084.723)
+2026-04-21 13:43:26,012 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 3 -----------------
+2026-04-21 13:43:27,066 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:27,076 | INFO     |: GT index         : (7, 1, 4)
+2026-04-21 13:43:27,076 | INFO     |: Prior Bel index  : (np.int64(5), np.int64(1), np.int64(4)) with prob = 0.1374599
+2026-04-21 13:43:27,076 | INFO     |: POS ERROR        : (0.542, 0.008, 1084.723)
+2026-04-21 13:43:27,077 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:30,092 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:43:30,106 | INFO     |: GT index      : (7, 0, 4)
+2026-04-21 13:43:30,106 | INFO     |: Bel index     : (np.int64(7), np.int64(1), np.int64(4)) with prob = 1.0
+2026-04-21 13:43:30,107 | INFO     |: Bel_bar prob at index = 4.9460895643870733e-14
+2026-04-21 13:43:30,107 | INFO     |: GT            : (0.543, -0.920, 1354.723)
+2026-04-21 13:43:30,107 | INFO     |: Belief        : (0.610, -0.914, -90.000)
+2026-04-21 13:43:30,107 | INFO     |: POS ERROR     : (-0.066, -0.006, 1444.723)
+2026-04-21 13:43:30,107 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 4 -----------------
+2026-04-21 13:43:33,165 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:33,174 | INFO     |: GT index         : (8, 0, 8)
+2026-04-21 13:43:33,174 | INFO     |: Prior Bel index  : (np.int64(7), np.int64(0), np.int64(7)) with prob = 0.4225844
+2026-04-21 13:43:33,174 | INFO     |: POS ERROR        : (0.190, 0.163, 1469.711)
+2026-04-21 13:43:33,175 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:36,198 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:43:36,209 | INFO     |: GT index      : (8, 0, 9)
+2026-04-21 13:43:36,209 | INFO     |: Bel index     : (np.int64(8), np.int64(1), np.int64(9)) with prob = 1.0
+2026-04-21 13:43:36,210 | INFO     |: Bel_bar prob at index = 9.79690013863578e-10
+2026-04-21 13:43:36,210 | INFO     |: GT            : (0.799, -1.056, 1800.188)
+2026-04-21 13:43:36,210 | INFO     |: Belief        : (0.914, -0.914, 10.000)
+2026-04-21 13:43:36,210 | INFO     |: POS ERROR     : (-0.115, -0.142, 1790.188)
+2026-04-21 13:43:36,211 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 5 -----------------
+2026-04-21 13:43:42,262 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:42,271 | INFO     |: GT index         : (11, 1, 11)
+2026-04-21 13:43:42,271 | INFO     |: Prior Bel index  : (np.int64(10), np.int64(4), np.int64(11)) with prob = 0.0741499
+2026-04-21 13:43:42,271 | INFO     |: POS ERROR        : (0.046, -0.898, 1799.060)
+2026-04-21 13:43:42,271 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:45,273 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:43:45,289 | INFO     |: GT index      : (11, 1, 11)
+2026-04-21 13:43:45,289 | INFO     |: Bel index     : (np.int64(10), np.int64(1), np.int64(11)) with prob = 1.0
+2026-04-21 13:43:45,289 | INFO     |: Bel_bar prob at index = 8.430573163273187e-08
+2026-04-21 13:43:45,289 | INFO     |: GT            : (1.570, -0.898, 2209.060)
+2026-04-21 13:43:45,290 | INFO     |: Belief        : (1.524, -0.914, 50.000)
+2026-04-21 13:43:45,290 | INFO     |: POS ERROR     : (0.046, 0.016, 2159.060)
+2026-04-21 13:43:45,290 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 6 -----------------
+2026-04-21 13:43:47,334 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:47,344 | INFO     |: GT index         : (11, 2, 12)
+2026-04-21 13:43:47,344 | INFO     |: Prior Bel index  : (np.int64(11), np.int64(2), np.int64(12)) with prob = 0.3726427
+2026-04-21 13:43:47,344 | INFO     |: POS ERROR        : (-0.175, 0.082, 2167.236)
+2026-04-21 13:43:47,344 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:50,340 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:43:50,347 | INFO     |: GT index      : (11, 2, 12)
+2026-04-21 13:43:50,347 | INFO     |: Bel index     : (np.int64(11), np.int64(3), np.int64(13)) with prob = 1.0
+2026-04-21 13:43:50,348 | INFO     |: Bel_bar prob at index = 0.11053301974729371
+2026-04-21 13:43:50,348 | INFO     |: GT            : (1.657, -0.515, 2597.236)
+2026-04-21 13:43:50,348 | INFO     |: Belief        : (1.829, -0.305, 90.000)
+2026-04-21 13:43:50,348 | INFO     |: POS ERROR     : (-0.172, -0.210, 2507.236)
+2026-04-21 13:43:50,348 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 7 -----------------
+2026-04-21 13:43:52,397 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:52,406 | INFO     |: GT index         : (11, 3, 13)
+2026-04-21 13:43:52,407 | INFO     |: Prior Bel index  : (np.int64(10), np.int64(4), np.int64(12)) with prob = 0.1321153
+2026-04-21 13:43:52,407 | INFO     |: POS ERROR        : (0.211, -0.170, 2532.871)
+2026-04-21 13:43:52,407 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:55,417 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:43:55,429 | INFO     |: GT index      : (11, 3, 13)
+2026-04-21 13:43:55,430 | INFO     |: Bel index     : (np.int64(11), np.int64(3), np.int64(13)) with prob = 1.0
+2026-04-21 13:43:55,430 | INFO     |: Bel_bar prob at index = 1.7938942715029833e-42
+2026-04-21 13:43:55,430 | INFO     |: GT            : (1.735, -0.170, 2962.871)
+2026-04-21 13:43:55,430 | INFO     |: Belief        : (1.829, -0.305, 90.000)
+2026-04-21 13:43:55,430 | INFO     |: POS ERROR     : (-0.094, 0.135, 2872.871)
+2026-04-21 13:43:55,431 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 8 -----------------
+2026-04-21 13:43:58,495 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:43:58,505 | INFO     |: GT index         : (11, 5, 14)
+2026-04-21 13:43:58,505 | INFO     |: Prior Bel index  : (np.int64(10), np.int64(4), np.int64(12)) with prob = 0.1763741
+2026-04-21 13:43:58,505 | INFO     |: POS ERROR        : (0.223, 0.322, 2915.508)
+2026-04-21 13:43:58,506 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:01,522 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:44:01,527 | INFO     |: GT index      : (11, 5, 14)
+2026-04-21 13:44:01,528 | INFO     |: Bel index     : (np.int64(11), np.int64(4), np.int64(13)) with prob = 0.9999998
+2026-04-21 13:44:01,528 | INFO     |: Bel_bar prob at index = 4.1997992695794606e-07
+2026-04-21 13:44:01,528 | INFO     |: GT            : (1.747, 0.322, 3345.508)
+2026-04-21 13:44:01,528 | INFO     |: Belief        : (1.829, 0.000, 90.000)
+2026-04-21 13:44:01,529 | INFO     |: POS ERROR     : (-0.082, 0.322, 3255.508)
+2026-04-21 13:44:01,529 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 9 -----------------
+2026-04-21 13:44:04,582 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:04,592 | INFO     |: GT index         : (11, 6, 16)
+2026-04-21 13:44:04,592 | INFO     |: Prior Bel index  : (np.int64(11), np.int64(4), np.int64(12)) with prob = 0.4608022
+2026-04-21 13:44:04,592 | INFO     |: POS ERROR        : (-0.074, 0.646, 3313.032)
+2026-04-21 13:44:04,593 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:07,594 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:44:07,604 | INFO     |: GT index      : (11, 6, 16)
+2026-04-21 13:44:07,604 | INFO     |: Bel index     : (np.int64(11), np.int64(7), np.int64(16)) with prob = 1.0
+2026-04-21 13:44:07,604 | INFO     |: Bel_bar prob at index = 8.397027570875253e-07
+2026-04-21 13:44:07,604 | INFO     |: GT            : (1.755, 0.646, 3744.942)
+2026-04-21 13:44:07,605 | INFO     |: Belief        : (1.829, 0.914, 150.000)
+2026-04-21 13:44:07,605 | INFO     |: POS ERROR     : (-0.074, -0.268, 3594.942)
+2026-04-21 13:44:07,605 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 10 -----------------
+2026-04-21 13:44:09,653 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:09,662 | INFO     |: GT index         : (10, 7, 16)
+2026-04-21 13:44:09,662 | INFO     |: Prior Bel index  : (np.int64(9), np.int64(8), np.int64(16)) with prob = 0.1269222
+2026-04-21 13:44:09,663 | INFO     |: POS ERROR        : (0.133, -0.290, 3606.213)
+2026-04-21 13:44:09,663 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:12,677 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:44:12,690 | INFO     |: GT index      : (10, 7, 16)
+2026-04-21 13:44:12,690 | INFO     |: Bel index     : (np.int64(10), np.int64(7), np.int64(16)) with prob = 1.0
+2026-04-21 13:44:12,691 | INFO     |: Bel_bar prob at index = 0.012007690118860746
+2026-04-21 13:44:12,691 | INFO     |: GT            : (1.353, 0.929, 4116.213)
+2026-04-21 13:44:12,691 | INFO     |: Belief        : (1.524, 0.914, 150.000)
+2026-04-21 13:44:12,691 | INFO     |: POS ERROR     : (-0.171, 0.014, 3966.213)
+2026-04-21 13:44:12,692 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 11 -----------------
+2026-04-21 13:44:15,750 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:15,759 | INFO     |: GT index         : (7, 6, 3)
+2026-04-21 13:44:15,759 | INFO     |: Prior Bel index  : (np.int64(9), np.int64(8), np.int64(17)) with prob = 0.6034099
+2026-04-21 13:44:15,759 | INFO     |: POS ERROR        : (-0.749, -0.358, 4043.120)
+2026-04-21 13:44:15,760 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:18,769 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:44:18,774 | INFO     |: GT index      : (7, 6, 3)
+2026-04-21 13:44:18,775 | INFO     |: Bel index     : (np.int64(2), np.int64(2), np.int64(11)) with prob = 0.9999995
+2026-04-21 13:44:18,775 | INFO     |: Bel_bar prob at index = 1.9486743123736938e-55
+2026-04-21 13:44:18,775 | INFO     |: GT            : (0.470, 0.861, 4573.120)
+2026-04-21 13:44:18,775 | INFO     |: Belief        : (-0.914, -0.610, 50.000)
+2026-04-21 13:44:18,776 | INFO     |: POS ERROR     : (1.385, 1.471, 4523.120)
+2026-04-21 13:44:18,776 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 12 -----------------
+2026-04-21 13:44:20,827 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:20,837 | INFO     |: GT index         : (6, 4, 5)
+2026-04-21 13:44:20,837 | INFO     |: Prior Bel index  : (np.int64(4), np.int64(5), np.int64(13)) with prob = 0.0573703
+2026-04-21 13:44:20,837 | INFO     |: POS ERROR        : (0.586, -0.066, 4527.438)
+2026-04-21 13:44:20,838 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:23,856 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:44:23,868 | INFO     |: GT index      : (6, 4, 5)
+2026-04-21 13:44:23,868 | INFO     |: Bel index     : (np.int64(6), np.int64(5), np.int64(5)) with prob = 1.0
+2026-04-21 13:44:23,869 | INFO     |: Bel_bar prob at index = 2.8658784601820347e-22
+2026-04-21 13:44:23,869 | INFO     |: GT            : (0.282, 0.239, 4977.438)
+2026-04-21 13:44:23,869 | INFO     |: Belief        : (0.305, 0.305, -70.000)
+2026-04-21 13:44:23,869 | INFO     |: POS ERROR     : (-0.023, -0.066, 5047.438)
+2026-04-21 13:44:23,869 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 13 -----------------
+2026-04-21 13:44:25,936 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:25,944 | INFO     |: GT index         : (6, 3, 2)
+2026-04-21 13:44:25,945 | INFO     |: Prior Bel index  : (np.int64(6), np.int64(3), np.int64(4)) with prob = 0.0859329
+2026-04-21 13:44:25,945 | INFO     |: POS ERROR        : (-0.281, 0.238, 4999.841)
+2026-04-21 13:44:25,945 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:28,944 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:44:28,957 | INFO     |: GT index      : (6, 3, 2)
+2026-04-21 13:44:28,957 | INFO     |: Bel index     : (np.int64(5), np.int64(3), np.int64(2)) with prob = 1.0
+2026-04-21 13:44:28,957 | INFO     |: Bel_bar prob at index = 0.027532139347578744
+2026-04-21 13:44:28,957 | INFO     |: GT            : (0.024, -0.066, 5269.841)
+2026-04-21 13:44:28,957 | INFO     |: Belief        : (0.000, -0.305, -130.000)
+2026-04-21 13:44:28,958 | INFO     |: POS ERROR     : (0.024, 0.238, 5399.841)
+2026-04-21 13:44:28,958 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 14 -----------------
+2026-04-21 13:44:32,014 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:32,023 | INFO     |: GT index         : (4, 3, 1)
+2026-04-21 13:44:32,024 | INFO     |: Prior Bel index  : (np.int64(4), np.int64(4), np.int64(2)) with prob = 0.1028521
+2026-04-21 13:44:32,024 | INFO     |: POS ERROR        : (-0.037, -0.212, 5377.014)
+2026-04-21 13:44:32,024 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:35,038 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:44:35,044 | INFO     |: GT index      : (4, 3, 1)
+2026-04-21 13:44:35,045 | INFO     |: Bel index     : (np.int64(4), np.int64(3), np.int64(1)) with prob = 1.0
+2026-04-21 13:44:35,045 | INFO     |: Bel_bar prob at index = 1.1332972840306894e-07
+2026-04-21 13:44:35,045 | INFO     |: GT            : (-0.342, -0.212, 5607.300)
+2026-04-21 13:44:35,045 | INFO     |: Belief        : (-0.305, -0.305, -150.000)
+2026-04-21 13:44:35,045 | INFO     |: POS ERROR     : (-0.037, 0.093, 5757.300)
+2026-04-21 13:44:35,046 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------
+
+
+----------------- 15 -----------------
+2026-04-21 13:44:38,114 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:38,123 | INFO     |: GT index         : (3, 3, 0)
+2026-04-21 13:44:38,123 | INFO     |: Prior Bel index  : (np.int64(3), np.int64(2), np.int64(1)) with prob = 0.1240784
+2026-04-21 13:44:38,123 | INFO     |: POS ERROR        : (-0.119, 0.407, 5734.091)
+2026-04-21 13:44:38,124 | INFO     |: ---------- PREDICTION STATS -----------
+2026-04-21 13:44:41,142 | INFO     |: ---------- UPDATE STATS -----------
+2026-04-21 13:44:41,154 | INFO     |: GT index      : (3, 3, 0)
+2026-04-21 13:44:41,155 | INFO     |: Bel index     : (np.int64(3), np.int64(3), np.int64(0)) with prob = 0.9867256
+2026-04-21 13:44:41,155 | INFO     |: Bel_bar prob at index = 0.0008162703052122592
+2026-04-21 13:44:41,155 | INFO     |: GT            : (-0.729, -0.203, 5944.377)
+2026-04-21 13:44:41,155 | INFO     |: Belief        : (-0.610, -0.305, -170.000)
+2026-04-21 13:44:41,156 | INFO     |: POS ERROR     : (-0.119, 0.102, 6114.377)
+2026-04-21 13:44:41,156 | INFO     |: ---------- UPDATE STATS -----------
+-------------------------------------</pre>
+</details>
+
+<p style="font-weight: bold;"> <strong>Conclusions</strong></p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab10img/8_sim.png">
+
+<p class="mb-4">Clearly, the Bayes filter (blue) does a far better job at predicting the ground truth location (green) than the plain odometry alone (red). We can see it failing when it has to trace a very large distance, which in the real world would go beyond what the ToF is able to read. This is most likely happening because our characterization of ToF noise does not take into account values when we are going beyond the specs of the ToF, and so the filter tries to extrapolate from this mischaracterization. This could possibly be fixed by detecting for very high ToF values and slightly modifying the behavior of the filter when this is detected.</p>
+
+<p style="font-weight: bold;"> <strong>Issues Faced</strong></p>
+
+<p class="mb-4">There were no issues, this lab was fairly straightforward.</p>
+
+<p style="font-weight: bold;"> <strong>References</strong></p>
+
+<p class="mb-4">When doing this lab, I referenced the sites of Albert Sun, Sean Zhang, and Stephan Wagner. I used Claude Sonnet 4.6 to help better understand the Bayes filter algorithm. I used lecture 18 of ECE4160 for the Bayes filter pseudocode shown above.</p>

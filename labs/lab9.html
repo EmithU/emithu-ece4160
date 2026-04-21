@@ -14,9 +14,7 @@
 
 <p class="mb-4">For lab 6, I had P-only rotation control as I saw very little steady-state oscillation. I added tape to the wheels; this let the car rotate effectively on carpet and rotate uncontrollably on a smooth surface. The floor of the room of the lab is also a smooth surface, so my lab 6 solution won't work here. I need to back to the drawing board.</p>
 
-<p class="mb-4">I started by removing the tape and testing my lab 6 algorithm as-is. There now seems to be too much friction between the wheels and the table; I found a less-smooth tape than what I was using before and applied it to the car; this seemed to work while minimizing slipping.</p>
-
-<p class="mb-4">My next issue </p>
+<p class="mb-4">I decided to implement full PID control for orientation. The P term will be the main driver for the car's orientation, the I term will help generaliize the car's precision when rotating across surfaces, and the D term will help to prevent overshoot. All 3 are important so the car can rotate as precisely and accurately as possible.</p>
 
 <p style="font-weight: bold;"> <strong>Read Out Distances</strong></p>
 
