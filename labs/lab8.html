@@ -14,39 +14,85 @@
 
 <p class="mb-4">This car needs to move fast. Furthermore, the car is prone to slipping; we need to be able to detect when to flip early to account for additional distance travelled slipping, and we need to be confident in our reading. This motivates our use of the Kalman Filter from lab 7 here, as it has proven to be capable of providing fast, capable readings.</p>
 
-<p class="mb-4">The drift could really be broken down into two distinct phases. Phase 1 involves the initial journey towards the wall, while phase 2 involves the actual turn. Each phase has its own distinct set of challenges and utilizes different parts of the system developed throughout the course.</p>
+<p class="mb-4">The drift could really be broken down into three distinct phases. Phase 1 involves the initial journey towards the wall, phase 2 involves the actual turn, and phase 3 involves returning back to the start. Each phase has its own distinct set of challenges and utilizes different parts of the system developed throughout the course.</p>
 
 <p style="font-weight: bold;"> <strong>Phase 1</strong></p>
 
 <p class="mb-4">At first, the car needs to move fast. This is both to make the stunt a true 'stunt', and to give it enough momentum that it can later do a full drift. I will have the car start at a PWM of 150, and have it maintain this PWM once it gets close to the wall.</p>
 
-<p class="mb-4">Next, we need to identify when the car is close to a wall. As mentioned previously, I use my Kalman filter developed in lab 7. I decided to initiate the drift when the car gets a distance reading of 700; this gives us ample time for the car to perform it's 180 degree turn.</p>
+<p class="mb-4">Due to issues with my ToF (it is returning wildly incorrect values), I configured the car to move forward for a set amount of time. If the ToF was reliable, I would've hoped to use it to detect when it is close to a wall. In any case, this is a user-adjustable value that I can use to make the car go 'close enough' to a wall before turning. Below is the cose performing this phase of the lab.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab8img/1_phase1.png">
 
 <p style="font-weight: bold;"> <strong>Phase 2</strong></p>
 
-<p class="mb-4">At this point, the car has now detected that it needs to perform the turn. We first set the PWM of both motors to 0; the car should have enough linear momentum at this point to keep travelling forwards as it turns.</p>
+<p class="mb-4">At this point, the car is now ready to perform a turn. In phase 1, we set the motors to a PWM of 0 and add a delay(10); this is in an effort to offer more 'stability' to the car so the PID algorithm can more easily turn. In theory, this shouldn't be necessary because a well-tuned PID algorithm should work regardless of the present movement of the car. I do this anyways so the motors have a chance to 'flush' itself of the linear movement PWM signal before performing the (considerably more complex) rotational movement. The timescale of this stop is so small that the car's drift still looks impressive.</p>
 
-<p class="mb-4">After this, we use our angular P-only PID algorithm to perform the 180 degree turn. Our use of the DMP, which can run at ~60Hz, should be fast enough to make the car turn roughly 180 degrees. Furthermore, the overshoot we saw in lab 6 will be essentially cancelled out by the linear momentum that the car has at this point. In theory, this should enable us to perform the turn.</p>
+<p class="mb-4">I initially tried using my P-only PID algorithm from lab 6, but found that it was not rotating fast enough to be usable here. For the drift to work, the car needs to rotate 180 degrees near instantly, and with as little overshoot or steady-state oscillation as possible. I also know future labs rely heavily on snappy, accurate rotations. As such, I implemented full orientation PID; below is my code pulling this off.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab8img/2_pid.png">
+
+<p class="mb-4">With this, I now needed to tune my PID parameters. Performing very similar tests as I did in lab 6, I landed on a kp = 5, ki = 0.0125, and kd = 65, with an integral wind-up clamp of 15.</p>
+
+<p class="mb-4">Because I only did P-control in lab 6, an explanation of the I, D, and integral wind-up terms is in order. The I term will essentially force the car to move faster the longer it is not at the target, with the integral wind-up clamp being the 'max' amount of force that the I term can provide. This clamp is necessary to prevent the I term from fully dominating and making the car overshoot it's target. The D term will slow the car down if it is getting close to the target very quickly.</p>
+
+<p class="mb-4">With all 3 of PID, the car should be able to perform the 180 degree rotation very consistently, regardless of extraneous conditions. We can now start implementing phase 2; below is my code for performing just that.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab8img/3_phase2.png">
+
+<p class="mb-4">We start by getting the exact angle we want to spin to, which is 180 degrees from where we are. At a high level, this code simply checks the current angle of the car constantly, and then breaks once it's at the right angle.</p>
+  
+<p class="mb-4">When doing the lab, I found that I was constantly fighting between how precisely I can get the car to perform a perfect 180 degree turn, and how quickly I can get it to do so. The car also varied in it's ability to do this, probably due to varying battery levels between repeated tests. I realized that, with the drift, we don't need to be absolutely perfect. As such, I have 2 conditions that will cause this loop to break before reaching 180: an absolute time limit and a 'valid range' of angles.</p>
+
+<p class="mb-4">I added an absolute time limit because drifts need to be fast, and I figured that a drift at an angle far from 180 degrees is more impressive than a slow turn that gets to 180 (at least for the purposes of this lab). I added a valid range above or below 180 degrees, also because I am prioritizing speed over accuracy (to an extent). The time limit was reached consistently earlier in testing, but as I got the PID algorithm tuned, the car generally reached the 'valid range' before exceeding the time limit.</p>
+
+<p class="mb-4">The actual time limit and valid range values were found experimentally; they were just where I could look at the car and think 'this is a drift'. In particular, I found that a range of +/-15 degrees and a time limit of 900ms were good. I did experiemnt with it a bit between trials though, just because I realize that this is a very subjective factor in this context.</p>
+
+<p class="mb-4">I also have a 'settling time' of 100ms. This is time where the car will stay still once the orientation loop breaks, once again to stabilize the PWM signals before the next phase.</p>
+
+<p style="font-weight: bold;"> <strong>Phase 3</strong></p>
+
+<p class="mb-4">Finally, we have performed the rotation and can start moving back to the start. This part is not rocket science, we just move the car forward and stop it after a set time. Below is the code performing just this.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab8img/4_phase3.png">
 
 <p style="font-weight: bold;"> <strong>DRIFT!</strong></p>
 
-<p class="mb-4">Below is the microcontroller code implementing all of this.</p>
+<p class="mb-4">Below are videos of the robot performing the stunt 3 times, along with the corresponding PID and PWM graphs.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab8vid/1_trial1.mp4" type="video/mp4">
+</video>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab8img/5_trial1.png">
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab8vid/2_trial2.mp4" type="video/mp4">
+</video>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab8img/6_trial2.png">
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab8vid/3_trial3.mp4" type="video/mp4">
+</video>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab8img/7_trial3.png">
+
+<p class="mb-4">The drifts were all pretty nice, but my PID algorithm needs a bit more tuning. I'll do this in preparation for lab 9.</p>
 
 <p style="font-weight: bold;"> <strong>Discussion</strong></p>
 
-<p class="mb-4">All in all, the many hours I spent developing the orientation PID algorithm and (especially!!!!!) the Kalman Filter paid off massively here - I think I spent more time on Lab 1 than I did for this lab, it was as simple as write the algorithm and fine-tune it.</p>
+<p class="mb-4">All in all, this lab went relatively well. I am still diagnosing my ToF issues as it will be very problematic in future labs, but the full PID orientation controller should hopefully be useful with more tuning. As for performing the stunt itself, I was able to get it working with very few code iterations.</p>
 
 <p class="mb-4">A consequence of this is that I don't have a great blooper reel. In it's place, I include a video, from lab 6, of me discovering just how unstable my car's orientation control is on smooth surfaces.</p>
 
 <video class="w-100 rounded mb-4" controls>
-    <source src="labs/videos/lab8vid/2_rot.mp4" type="video/mp4">
+    <source src="labs/videos/lab8vid/4_rot.mp4" type="video/mp4">
 </video>
 
 <p style="font-weight: bold;"> <strong>Issues Faced</strong></p>
 
-<p class="mb-4">In between labs 7 and 8, I changed the tape on the wheels to one which is slightly less smooth. This was in an effort to make the car slip less, but required me to recompute kp for rotations. Surprisingly, my Kalman filter worked without any changes though.</p>
-
-<p class="mb-4">For the Kalman Filter - my guess is that the difference in friction isn't significant enough to truly affect it's predictions. </p>
+<p class="mb-4">In between labs 7 and 8, I changed the tape on the wheels to one which is slightly less smooth. This was in an effort to make the car slip less, but required me to recompute kp for rotations.</p>
 
 <p style="font-weight: bold;"> <strong>References</strong></p>
 

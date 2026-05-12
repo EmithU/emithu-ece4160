@@ -14,4 +14,16 @@
 
 <img class="img-fluid rounded mb-4" src="labs/images/lab11img/1_sim.png">
 
-<p class="mb-4">Clearly, the filtered and ground truth poses match each other very well, while the odometry is very far off. This is expected and proves that the algorithm itself is effective.</p>
+<p class="mb-4">Clearly, the filtered and ground truth poses match each other reasonably well, while the odometry is very far off. This is expected and proves that the algorithm itself is effective.</p>
+
+<p style="font-weight: bold;"> <strong>Implementation</strong></p>
+
+<p class="mb-4">We now need to implement this code onto the microcontroller. Unlike with what we did for the Kalman filter, we cannot rely on simulation-only steps for data due to how noisy the car is. The main consequence of this is that the car will need to run slower, as it can't compute . </p>
+    
+<p class="mb-4">We can retrofit our lab 9 code to obtain the real-world ToF samples.</p>
+
+<p style="font-weight: bold;"> <strong>Issues Faced</strong></p>
+
+<p style="font-weight: bold;"> <strong>References</strong> </p>
+
+<p class="mb-4">When doing this lab, I referenced the sites of Albert Sun, Sean Zhang, and Stephan Wagner. I used Claude Sonnet 4.6 to help generate code for the plots, and to help with debugging microcontroller code.</p>
