@@ -1,0 +1,137 @@
+<h2 class="portfolio-modal-title text-secondary text-uppercase mb-0">Lab 12</h2>
+<div class="divider-custom">
+  <div class="divider-custom-line"></div>
+  <div class="divider-custom-line"></div>
+</div>
+
+<img class="img-fluid rounded mb-4" src="assets/img/lab12.png">
+
+<p class="mb-4">This lab seeks to perform path planning and execution, by any means necessary.</p>
+
+<p style="font-weight: bold;"> <strong>Motivation</strong> </p>
+
+<p class="mb-4">This lab is "intentionally very open ended"; we can approach the problem however we see fit. For my solution, I thought about the labs that I was particularly proud of, as well as the type of work that I personally enjoy doing. I developed an effective Kalman Filter in lab 7, as well as very precise PID orientation control for labs 8, 9, and 11; I want to use them in this lab.</p>
+
+<p class="mb-4">Furthermore, I like it when the car moves fast, and also want the car to be doing as much on-board as possible. I see the Bluetooth connection as a wireless tether (...this is an oxymoron, but whatever), and an annoying one at that; while we need it to start the car, I want the car to navigate the area without offloading any data/calculations.</p>
+
+<p class="mb-4">To me, this motivates a plan in which the car does not perform any localization, but utilizes very precise PID control and the Kalman Filter to zoom through the course. While the lack of localization makes me a bit sad, this class is called FAST robots, and I generally preferred labs 5-8 over 9-11. So this car will be moving fast and precisely, with no localization; the main challenge will be making it accurate.</p>
+
+<p style="font-weight: bold;"> <strong>High-Level Plan</strong> </p>
+
+<p class="mb-4">With this, we can develop an actionable plan. At a high level, here is what I do:</p>
+
+<div style="border: 1.5px solid #ccc; border-left: 4px solid #6c757d; background-color: #f8f9fa; border-radius: 6px; padding: 1rem 1.25rem; margin-bottom: 1.5rem;">
+  <p class="mb-3"><strong>1.</strong> Have the car start at the same known location and orientation at every trial, directly facing the next target.</p>
+  <p class="mb-3"><strong>2.</strong> Measure and input the ToF value corresponding to when the car is on the next target. Have the car move forward until it's on the target.</p>
+  <p class="mb-0"><strong>3.</strong> Rotate until we're facing the next target, and repeat step 2 for the next target. Rinse and repeat steps 2-3 until we are back at the start.</p>
+</div>
+
+<p class="mb-4">This sounds simple enough, but only works effectively if all utilized controls and filters are precise and accurate; a lot of tuning and adjusting is in order. Due to limited lab hours, I made a custom arena and primarily developed there. Everything pertaining to movement in my system is closed-loop, so running it in the lab is just a process of inputting different ToF and angle values. As such, most 'in progress' videos/pictures/graphs are outside the lab, but I do include runs on the actual arena at the end of this report.</p>
+
+<p class="mb-4">Just for reference, below is a picture of my arena, along with a drawing depicting all measurements. Because I use the DMP, all angles are relative to the initial heading of the car. I didn't want to move too much furniture around in Philips 407, so the final target is under a table.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/1_carena.png">
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/2_cdraw.png">
+
+<p style="font-weight: bold;"> <strong>Development Overview</strong> </p>
+
+<p class="mb-4">I performed a drift in Lab 8. This both looked flashy and was fast. Furthermore, I organized my code into 'phases' involving either linear movement or rapid turns about an axis. When assessing my goals and general plan for this lab, I realized that navigating this maze is fundamentally a massive extension of my lab 8 drift. As such, I based my code for this lab from my lab 8 code.</p>
+
+<p class="mb-4">With this in mind - I decided that, before attempting the full course, I should first nail the drift again. This time, I need to make sure the car starts drifting at a set point every time, perform a turn of a set degree exactly, and stop at a set point. I also have the car perform a 90 degree turn instead of 180 degrees. To gain this accuracy, I will have to sacrifice speed; this is expected and a reflection of the difference in goals between labs 8 and 12. To avoid complete rewrites once I mastered this drift, I made these targets the first 3 points of my custom arena.</p>
+
+<p class="mb-4">Truthfully, I had issues with making the car very fast while still hitting the waypoints. With that said, I have found it to be reasonably accurate, and I find solace in the fact that the car is navigating closed-loop with systems I spent this semester developing. Below is a video of the car pulling this off. For the remaining 'Development' sections, any produced graphs come from this run. I expand on this significantly later in the report, but I use PD for linear control, full PID for orientation control, and Kalman Filtered ToF readings.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab12vid/1_drift.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">For the code, I wanted to generalize it such that waypoints can be added easily. I have 2 arrays - one for waypoints, and another for angles between waypoints. There is one less angle than there are waypoints because 2 waypoints are separated by just one angle. Below is a screenshot of the arrays (populated with my full, custom arena).</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/3_arr.png">
+  
+<p class="mb-4">For the waypoints themselves, I defined them by the ToF reading the car should have if facing them while going over the course. This way, the car doesn't need to rotate in any direction beyond the one that it's traversing or about to traverse. I have a local function specifically for this, heavily inspired by my rotation function in lab 8 (with an allowable range of +/-10mm); I have included it below.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/4_dist.png">
+
+<p class="mb-4">As for the angles - I initially had a system where the car would just rotate a set 45 or 90 degrees, but found that this resulted in inaccuracies much of the time. I developed a method in which the car stores it's yaw right before starting a turn, and then goes to absolute angles centered at that turn; this is also abstracted into a local function. This removes a source for accumulated error and gives stronger garauntees on the heading of the car. The code for this is presented below.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/5_rot.png">
+
+<p class="mb-4">With this, the main Bluetooth-callable function is relatively basic as it just loops through the arrays and makes calls as needed; it is shown below.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/6_main.png">
+
+<p style="font-weight: bold;"> <strong>Development - Linear Control</strong> </p>
+
+<p class="mb-4">I debated for a while on if I wanted linear control to be open-loop or closed-loop, in the sense that I have the car's PWM change dynamically as it gets closer to the desired ToF reading (like in lab 5). Open-loop control would offer more speed, but sacrifice on accuracy without significant tuning that would need to be re-done for every target. In my opinion, a moderately fast car that moves very accurately would be more impressive than a very fast car that is not very accurate. As such, I use my linear PID controller to approach the target.</p>
+
+<p class="mb-4">In Lab 5, I developed P-only linear control. That will not cut it here because we need the car to consistently reach a very specific point quickly, and my P-only controller was suseptible to oscillations. As such, I implemented full PID for lienar control (but wound up not using the I). Below is the code doing just this (the function name is now wrong, but this is the last lab of the course; I can just ignore it):</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/7_lpid.png">
+
+<p class="mb-4">The P and D terms go without saying (P for general speed, D to slow down as we reach the target). I originally wanted the I-term because I want the car to slow down significantly as it reaches it's target (to make ToF measurements less noisy when close and to provide more stability prior to rotations), but don't want this process to get too slow; in my mind, the I was a good compromise between P and D. In practice, P and D got the job done effectively, and introducing I just resulted in overshoot.</p>
+
+<p class="mb-4">After significant tuning, I found that a kp = 0.17 and kd = 5.9 worked best. Below are the linear P/D graphs of the 1-turn run. Note that a bit of the graph is missing; this is when the car was rotating.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/8_linpd.png">
+
+<p class="mb-4">While the P values mostly make sense, the D values seem to be going crazy. This is because the Kalman Filter has slight imperfections whenever it is in an update step, and the D term is very sensitive to those imperfections. In theory, this can cause very unstable behavior (particularly in situations where the Kalman Filter is not as effective at predicting, like when the car is moving very slow). I found that, in practice, this was not causing real-world issues so I chose to ignore it.</p>
+
+<p style="font-weight: bold;"> <strong>Development - Orientation Control</strong> </p>
+    
+<p class="mb-4">For the 180 degree turn in lab 8, I used a strategy involving a 'settling time' between phases (to ensure that the motors are doing what the code wants them to do), a time limit (so the car moves forward even if not at the target), a range of acceptable angles (because I determined that the turn only needs to be close to 180 degrees, not exactly 180), and another 'settling time' that the car uses to verify that it is maintaining the desired angle before moving on (and not slipping out of angle). This resulted in very snappy, and surprisingly accurate, turns.</p>
+
+<p class="mb-4">For this lab, I want to keep the settling times and the valid ranges, but remove the time limit. In lab 8, the car would exit it's turn phase either because it's in range or because of the time limit. I need this car to now achieve a precise heading, and so removing the time limit is necessary. </p>
+    
+<p class="mb-4">As for the valid range - I used 15 degrees in lab 8, which is way too much here. I still want an acceptable range though to maintain some of the snappiness in the turns. I stuck with a range of +/- 1 degree; this is tiny because slight inaccuracies in angle accumulate as the car performs more turns. This whole 'range' concept is me trying to take a shortcut in my orientation PID controller, to account for erroneous noise or random changes in dynamics. If my PID controller is reliable, this small range should still work and let rotations occur quickly, without performance varying unpredictably.</p>
+
+<p class="mb-4">With more tuning, I found that a kp = 10.5, ki = 1.0, kd = 35.0, and integral wind-up = 80 worked best. I really, really wish rotations could have been more 'sloppy' so the car can drift around, but us hitting the points takes priority. So I made it slow and steady. Here are the orientation P/I/D and yaw graphs for the 1-turn run.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/9_rotpid.png">
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/10_yaw.png">
+
+<p class="mb-4">Both graphs fall within expectations. The car does overshoot, but a combination of it otherwise working precisely and me not having much time meant that I just stuck with it. Once again, really wish I could've made this part faster, but it is what it is.</p>
+
+<p style="font-weight: bold;"> <strong>Development - Time of Flight and Kalman Filtering</strong> </p>
+
+<p class="mb-4">Even at this speed, the ToF can have issues with keeping up. This motivates the Kalman Filter - experience tells me that developing and tuning such a filter is a pain. Luckily, the aformentioned experience is paying off here; I could just use my get_distance() function with no changes, and use my sigma1/2/3 from lab 7 here as well (sigma1/2 = 10, sigma3 = 125).</p>
+
+<p class="mb-4">Just for the sake of completion, here is a graph of filtered and unfiltered ToF readings for the above drift.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/11_tof.png">
+
+<p class="mb-4">As expected, the readings all match up nicely and the filter does a good job at predicting. There is a gap in the middle; once again, this is for when the car is rotating.</p>
+
+<p style="font-weight: bold;"> <strong>Execution - Custom Arena</strong> </p>
+
+<p class="mb-4">With all of this, we can now take advantage of our generalized drift code and navigate the full custom arena. I did this iteratively by adding points one-by-one and fine-tuning whenever anything seemed off. A janitor came in at around 5 AM and temporarily stole my trash cans, so I had to (slightly) change my waypoints from the drawing above.</p>
+
+<p class="mb-4">Eventually, I was able to navigate the full course. Below is a video of the car performing just that.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab12vid/2_custom.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">The car does miss the second waypoint by a fair bit, but I think this arena (and that point specifically) is more demanding than the one in lab, and the car did get to the final waypoint regardless. Not to mention, this is a self-imposed task. So I'm counting this as a win.</p>
+
+<p style="font-weight: bold;"> <strong>Execution - Lab Arena</strong> </p>
+
+<p class="mb-4">The real goal of this lab is to navigate the arena in the lab. I first gathered the angle and ToF readings needed; below are my waypoint and angle arrays.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/12_real.png">
+
+<p class="mb-4">Finally, here is a video of the car navigating the course. It's not quite at the point where the car just drifts around, but I am happy that it managed to achieve this at all. I had the car navigate the course in the inverse direction just to make the angle calculations easier. Both of my PID controllers and the Kalman Filter worked essentially perfectly here; I kept having to readjust the PWM offset between the motors in order to finally get a working run. This has been a reoccuring problem thorughout this course, no singular number works because the offset changes based on battery level. In any case, I did eventually get it working.</p>
+
+<p class="mb-4">TODO VIDEO ALONG ACTUAL COURSE</p>
+
+<p style="font-weight: bold;"> <strong>References</strong> </p>
+
+<p class="mb-4">When doing this lab, I referenced the sites of Albert Sun, Sean Zhang, and Stephan Wagner. I used Claude Sonnet 4.6 to help generate code for the plots, and to help with debugging microcontroller code.</p>
+
+<p style="font-weight: bold;"> <strong>Thank You</strong> </p>
+
+<p class="mb-4">This is one of the most unique classes I've taken at Cornell, and what I imagined engineering school would be like as a kid. I definitely had a number of sleepless nights, but I learned a lot and am pretty happy with the end results. Thank you to Prof. Helbling and the TA staff for putting in the time, effort, and energy to make this all both possible and enjoyable.</p>
+
+<p class="mb-4">As a side note, I also took a class on infant development this semester. The development of this car and the process of (effectively) raising an infant are remarkably similar - you go from issues with making the car move, to issues with making the car stop, to issues with making the car do what you need it to do. I find this very amusing.</p>

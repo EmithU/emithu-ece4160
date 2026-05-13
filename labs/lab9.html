@@ -10,19 +10,71 @@
 
 <p style="font-weight: bold;"> <strong>Control</strong></p>
 
-<p class="mb-4">For this lab, I want to go beyond open-loop control. With that said, the idea of the car collecting ToF measurements while rotating sounds very hard to tune. As such, I plan on implementing orientation control.</p>
+<p class="mb-4">For this lab, I want to go beyond open-loop control. With that said, the idea of the car collecting ToF measurements while rotating sounds very hard to tune. As such, I plan on implementing orientation control. Additionally - I decided to aim for 15 readings, just because 360/15 is a clean 24.</p>
 
-<p class="mb-4">For lab 6, I had P-only rotation control as I saw very little steady-state oscillation. I added tape to the wheels; this let the car rotate effectively on carpet and rotate uncontrollably on a smooth surface. The floor of the room of the lab is also a smooth surface, so my lab 6 solution won't work here. I need to back to the drawing board.</p>
+<p class="mb-4">While I implemented full PID control in lab 8, I did not spend too much time tuning it. Lab 8 required we make a precise enough turn quickly, but this lab demands precision above all else. Furthermore, the 'nature' of the turn in this lab is different; instead of a more 'continuous' turn, we want it to snap to a precise angle.</p>
 
-<p class="mb-4">I decided to implement full PID control for orientation. The P term will be the main driver for the car's orientation, the I term will help generaliize the car's precision when rotating across surfaces, and the D term will help to prevent overshoot. All 3 are important so the car can rotate as precisely and accurately as possible.</p>
+<p class="mb-4">I have described the tuning process for these parameters in previous reports; essentially the same process was performed here. I found that a kp = 9.5, ki = 1.0, kd = 40, and integral wind-up clamp = 80 worked well in this case. Below is a video of the car performing the turns essentially on-axis, as well as corresponding P/I/D and yaw plots.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab9vid/1_rotvid.mp4" type="video/mp4">
+</video>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab9img/1_rotgraph.png">
+
+<p class="mb-4">And below is the code for performing this action.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab9img/2_rotcode.png">
+
+<p class="mb-4">In short, the code checks the current angle, checks the part of the offset array assigned to it, and goes to that angle. I allow a range of +/- 3 degrees (explained later in the report), and once again have a settling time, similar to what I did in lab 8.</p>
+
+<p class="mb-4">Overall, the car does shift off-axis as it rotates, but is within acceptable limits. We can roughly say that the average error is ~3 inches (~76.2 mm), with a worst-case closer to 6 inches (152.4 mm), but this will vary between runs. While this error is considerable, the distances we are measuring are to the order of hundreds or thousands of mm; this rotation pattern should let us roughly map out the environment.</p>
+
+<p class="mb-4">As for sensor drift, my use of the DMP mitigates the effects. When compared to the effects of the car's physical shifting, or erroneous noise, we can call the error from sensor drift negligible.</p>
 
 <p style="font-weight: bold;"> <strong>Read Out Distances</strong></p>
 
+<p class="mb-4">Due to time, I got these measurements in a hallway (or more specifically, a very eerie staircase in Rhodes basement) instead of the lab. Below is a picture of the hallway. The 'X' marks are where I place the robot for scanning.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab9img/3_hall.png">
+
+<p class="mb-4">I next had to integrate ToF measurements into my rotation code. To do this, I had the car hold for a second once it reaches an angle, take multiple ToF samples, take the average of them, and return that as the 'canonical' ToF value for that location. I use the average of multiple samples to reduce the effeccts of erroneous noise. Below is the code for ToF measurements specifically. Due to the relatively large area, I also set the ToF to the 'long' ranging mode.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab9img/4_tofcode.png">
+
+<p class="mb-4">In my rotation code, I allow for an acceptable range of +/- 3 degrees from the actual target. This is becasue getting the car to go to a specific angle (with no error) is very difficult and can be very time consuming (in the sense that the car might take a while to settle); I found that +/- 3 degrees is close enough to an equally spaced set of 24 degree increments to get the information I need.</p>
+
+<p class="mb-4">Once the data was collected and saved, I first generated polar plots for each of the points as a sanity check. Below are the resultant plots. We can see the general shape of the room through the plots, and each plot makes sense with respect to what the car should be able to see at the point.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab9img/5_polar.png">
+
 <p style="font-weight: bold;"> <strong>Merge and Plot Your Readings</strong></p>
+
+<p class="mb-4">We now want to convert each set of ToF readings to a global frame - this will let us form a map. To do this, we use the following matrix.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab9img/6_matrix.png">
+
+<p class="mb-4">The car was always started at the same initial orientation for each set of measurements, so the rotation matrix can always be the identity matrix. Furthermore, we are not attempting map out height, so the z-axis can be ignored; this also means that we are working with a 3x3 matrix. Below is the code for transforming this data.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab9img/7_pltcode.png">
+
+<p class="mb-4">In the code, I added an offset to account for the ToF being on the front of the car. I also negated the x-component due to the car rotating counter-clockwise during it's scan. Below is the resultant plot.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab9img/8_combplot.png">
+
+<p class="mb-4">The plot clearly mimics the scanned environment, indicating that the car is capable of basic localization. Of course, the 'edges' don't seem very sharp - this is because we assume that the car moves perfectly on-axis when producing the plot, which is not the case in reality. I also allowed the car to be off by +/- 3 degrees when rotating, but didn't account for that on the plot. Regardless, I think that this plot is of acceptable quality.</p>
 
 <p style="font-weight: bold;"> <strong>Convert to Line-Based Map</strong></p>
 
+<p class="mb-4">The rough outline of the hallway is clearly present. We can make this more clear by drawing lines over the outline. I manually drew out edges and superimposed them onto the plot; below is the result of doing this.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab9img/9_border.png">
+
 <p style="font-weight: bold;"> <strong>Issues Faced</strong></p>
+
+<p class="mb-4">Getting the car to move acceptably on-axis was very tricky. I needed to re-calibrate my motor PWM offsets from scratch. Without doing this, one set of wheels tended to 'dominate' and caused the car to spin in a circle, but the calibraion value I found in previous labs didn't seem to work anymore.</p>
+
+<p class="mb-4">I also kept making mistakes when writing the plotting code, causing me to think that my ToF was producing garbage data, when in reality it was just the plotting code being off. I was having ToF issues in lab 8, but more secure tape seemed to fix the issues here.</p>
 
 <p style="font-weight: bold;"> <strong>References</strong></p>
 
