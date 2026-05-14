@@ -54,7 +54,7 @@
 
 <img class="img-fluid rounded mb-4" src="labs/images/lab12img/4_dist.png">
 
-<p class="mb-4">As for the angles - I initially had a system where the car would just rotate a set 45 or 90 degrees, but found that this resulted in inaccuracies much of the time. I developed a method in which the car stores it's yaw right before starting a turn, and then goes to absolute angles centered at that turn; this is also abstracted into a local function. This removes a source for accumulated error and gives stronger garauntees on the heading of the car. The code for this is presented below.</p>
+<p class="mb-4">As for the angles - I initially had a system where the car would just rotate a set 45 or 90 degrees, but found that this resulted in inaccuracies much of the time. I developed a method in which the car stores it's yaw right before starting a turn, and then goes to absolute angles centered at that turn; this is also abstracted into a local function. This code also attempts to reduce accumulated error by tracking inaccuracies between the intended and actual angles (due to the acceptable range going beyond the exact angle itself), as even a one degree offset per turn can build up quick if not accounted for.</p>
 
 <img class="img-fluid rounded mb-4" src="labs/images/lab12img/5_rot.png">
 
@@ -114,7 +114,7 @@
     <source src="labs/videos/lab12vid/2_custom.mp4" type="video/mp4">
 </video>
 
-<p class="mb-4">The car does miss the second waypoint by a fair bit, but I think this arena (and that point specifically) is more demanding than the one in lab, and the car did get to the final waypoint regardless. Not to mention, this is a self-imposed task. So I'm counting this as a win.</p>
+<p class="mb-4">The car could have been a bit more accurate, but I think more fine-tuning is best done on the actual arena at this point. Not to mention, this is all a self-imposed task. So I'm counting this as a win, and moving on to the actual arena. If anything, let this be evidence of the (relative) generalizability of this code; all you need to do is populate the ToF and angle arrays, and the car's closed loop algorithms should be accurate enough to make a good attempt on any arena.</p>
 
 <p style="font-weight: bold;"> <strong>Execution - Lab Arena</strong> </p>
 
@@ -122,13 +122,27 @@
 
 <img class="img-fluid rounded mb-4" src="labs/images/lab12img/12_real.png">
 
-<p class="mb-4">Finally, here is a video of the car navigating the course. It's not quite at the point where the car just drifts around, but I am happy that it managed to achieve this at all. I had the car navigate the course in the inverse direction just to make the angle calculations easier. Both of my PID controllers and the Kalman Filter worked essentially perfectly here; I kept having to readjust the PWM offset between the motors in order to finally get a working run. This has been a reoccuring problem thorughout this course, no singular number works because the offset changes based on battery level. In any case, I did eventually get it working.</p>
+<p class="mb-4">When doing the real run, I began running into problems. Both of my PID controllers and the Kalman Filter worked very well here. I kept having to readjust the PWM offset between the motors in order to make the car move straight. This has been a reoccuring problem thorughout this course; no singular wheel factor works because the offset changes based on battery level. Normally, trials are short enough that I just manually find a value and stick with it. Here though, the car must travel for extended periods of time, and significant sources of error will build up and hurt the final trial tremendously. It was particularly malicious in this lab becuase the error in an even slightly incorrect offset built up over time.</p>
 
-<p class="mb-4">TODO VIDEO ALONG ACTUAL COURSE</p>
+<p class="mb-4">This above problem single handedly turns my algorithm from a home run to essentially luck, and this bothered me to my core. Unbalanced motor controls change the angle at which the car apporaches a point, which messes with the angle that the car turns to, which corrupts everything. Not only that, but as the car moves, it uses battery, and so the car will become more unbalanced through a trial. I have never been more annoyed at something in my life. I got fed up with this and added a third PID controller, just to force the car to move straight.</p>
+
+<p class="mb-4">This controller is conceptually similar to my orientation controller in that we are trying to reach and maintain a specific heading, and I established in labs 9 and 11 that it can make small angle corrections. As such, I model this code similarly to that code. I have separate kp/ki/kd/clamp values and found them experimentally. I would normally go into detail on my PID testing, but the process here is very similar to what I have done for previous labs (and earlier for this lab). I landed on a kp = 4, ki = 0.03, kd = 10, and integral wind-up clamp = 10.</p>
+
+<p class="mb-4">I put these controllers in my moveForwards/moveBackwards functions, so previously-written functions which use them don't need to be changed, and future functions don't need to worry about how moving forwards works. Below is the final PID controller functions for maintaining heading.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab12img/13_sleepy.png">
+
+<p class="mb-4">... I wish I can say that, after all of this, the car could navigate the arena sharply and effectively. It cannot. Below is a video of my best attempt.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab12vid/3_fail.mp4" type="video/mp4">
+</video>
+
+<p class="mb-4">I think that a combination of slightly-mistuned PID controllers, DMP noise, and slippage are causing the issues at play when it comes to hitting the waypoints exactly. I also think that there is an issue with how my code wraps angles, as I could not get the car to make the 45 degree turn. If I were not on my second all-nighter in a row (and have finals coming up rapidly), I would absolutely debug this because the car is very, very close; I'll sacrifice the lab points for a few hours of sleep. In any case, I think this shows the general vision of what I was going for, and I definitely learned a lot from this experience.</p>
 
 <p style="font-weight: bold;"> <strong>References</strong> </p>
 
-<p class="mb-4">When doing this lab, I referenced the sites of Albert Sun, Sean Zhang, and Stephan Wagner. I used Claude Sonnet 4.6 to help generate code for the plots, and to help with debugging microcontroller code.</p>
+<p class="mb-4">When doing this lab, I referenced the sites of Albert Sun, Sean Zhang, and Stephan Wagner. I used Claude Sonnet 4.6 to help generate code for the plots, and to help with debugging microcontroller code (though, it was not helpful enough this time around).</p>
 
 <p style="font-weight: bold;"> <strong>Thank You</strong> </p>
 
