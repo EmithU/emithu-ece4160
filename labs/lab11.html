@@ -18,11 +18,39 @@
 
 <p style="font-weight: bold;"> <strong>Implementation</strong></p>
 
-<p class="mb-4">We now need to implement this code onto the microcontroller. Unlike with what we did for the Kalman filter, we cannot rely on simulation-only steps for data due to how noisy the car is. The main consequence of this is that the car will need to run slower, as it can't compute . </p>
+<p class="mb-4">At a high level, we want to run the same localization algorithm as we did on the simulator, this time with data from the actual car. I did lab 9 with an angular PID controller I originally implemented in lab 6. Additionally, I specifically have it so it would spin in the full circle at 24 degree increments, measure and collect all values, and send it all once it's done. For this lab, all I need to do is change the 24 degree increments to 20 degree increments; the function can otherwise be used as-is. Please see my lab 9 report for a more detailed description of it. Below is the function as used in lab 9; the only difference here is modifying the array and numTargets variable.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab11img/2_rotcode.png">
+
+<p class="mb-4">We also need to add Python code which properly starts the car's collection algorithm and formats the data to a usable form. Below is that Python code.</p>
     
-<p class="mb-4">We can retrofit our lab 9 code to obtain the real-world ToF samples.</p>
+<img class="img-fluid rounded mb-4" src="labs/images/lab11img/3_python.png">
+
+<p style="font-weight: bold;"> <strong>Results</strong></p>
+
+<p class="mb-4">Below is the results for the point [-3, -2], along with a video of the car on that point. The car seems to have essentially nailed the point, with it's predicted point falling directly on the ground truth position. Nothing ever works this perfectly 100% of the time, but it was nice to see the car land this.</p>
+
+<video class="w-100 rounded mb-4" controls>
+    <source src="labs/videos/lab11vid/1_lab.mp4" type="video/mp4">
+</video>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab11img/4_point1.png">
+
+<p class="mb-4">Below is the results for the point [0,3]. It landed this one perfectly too, which is nice. My car spins pretty well on-axis, which is certainly helping out here. Furthermore, I take the average of multiple ToF readings at each angle, which definitely also helps with how clean the data is coming out.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab11img/5_point2.png">
+
+<p class="mb-4">Below is the results for [5,-3]. As expected, we finally have a point that isn't pefect, but this is still pretty close. The close proximity to the wall makes this point particularly vulnerable to the drift the car has as it rotates. We can even tell that it drifts towards the wall because the predicted point is closer to the wall than the actual point.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab11img/6_point3.png">
+
+<p class="mb-4">Below is the results for [5,3]. This seems to have suffered a similar fate as the above point, and did seem to drift a bit more as it rotated. I suspect that the drift is due to lowering battery levels, and we can see that materialize into a less accurate prediction here. In any case, the prediction is still reasonable.</p>
+
+<img class="img-fluid rounded mb-4" src="labs/images/lab11img/7_point4.png">
 
 <p style="font-weight: bold;"> <strong>Issues Faced</strong></p>
+
+<p class="mb-4">As usual, I had to (slightly) re-tune my orientation PID algorithm, most likely because of fluctuations in battery level, and because I changed the tape on the wheels again. I used a kp = 10.45, ki = 1.05, kd = 35, and clamp = 80 here.</p>
 
 <p style="font-weight: bold;"> <strong>References</strong> </p>
 
